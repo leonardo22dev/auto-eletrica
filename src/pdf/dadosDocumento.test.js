@@ -92,7 +92,7 @@ describe('montarDadosDocumento', () => {
 
   it('aceita OS cancelada sem número', () => {
     const d = montarDadosDocumento({ ...OS, numero: null }, CONFIG)
-    expect(d.numero).toBe('—')
+    expect(d.numero).toBe('---')
   })
 
   it('não perde itens quando passam de 18 — abre as linhas necessárias', () => {
@@ -104,6 +104,55 @@ describe('montarDadosDocumento', () => {
     expect(d.linhas).toHaveLength(23)
     expect(d.linhas[22].descricao).toBe('Item 23')
     expect(d.linhas.filter((l) => l.vazia)).toHaveLength(0)
+  })
+
+  // As fontes padrão do PDF não têm travessão, bullet, aspas curvas nem
+  // reticências: esses caracteres somem do papel sem erro nenhum. Numa
+  // descrição de serviço, caractere que desaparece em silêncio é defeito.
+  describe('caracteres que a fonte do PDF não imprime', () => {
+    it('troca travessão e meia-risca por hífen na descrição do item', () => {
+      const d = montarDadosDocumento({
+        ...OS,
+        itens: [{ posicao: 1, quantidade: 1, quantidadeTexto: '1',
+                  descricao: 'Alternador — recondicionamento – completo',
+                  valor_unitario_centavos: 100, valor_total_centavos: 100 }],
+      }, CONFIG)
+      expect(d.linhas[0].descricao).toBe('Alternador - recondicionamento - completo')
+    })
+
+    it('troca travessão na descrição do veículo', () => {
+      const d = montarDadosDocumento(
+        { ...OS, veiculo_descricao: 'GM Chevette 1982 — Bege' }, CONFIG)
+      expect(d.veiculo.descricao).toBe('GM Chevette 1982 - Bege')
+    })
+
+    it('troca aspas curvas e reticências', () => {
+      const d = montarDadosDocumento({
+        ...OS,
+        cliente_nome: '“João” ‘Silva’…',
+        itens: [],
+      }, CONFIG)
+      expect(d.cliente.nome).toBe('"João" \'Silva\'...')
+    })
+
+    it('mantém acentos, cedilha e til, que a fonte imprime', () => {
+      const d = montarDadosDocumento({
+        ...OS,
+        itens: [{ posicao: 1, quantidade: 1, descricao: 'Injeção eletrônica à São',
+                  valor_unitario_centavos: 100, valor_total_centavos: 100 }],
+      }, CONFIG)
+      expect(d.linhas[0].descricao).toBe('Injeção eletrônica à São')
+    })
+
+    it('limpa também os textos vindos das configurações', () => {
+      const d = montarDadosDocumento(OS, {
+        ...CONFIG,
+        razao_social: 'Auto Elétrica — MIZUHO II',
+        servicos_cabecalho: ['BATERIAS — TODAS'],
+      })
+      expect(d.empresa.razaoSocial).toBe('Auto Elétrica - MIZUHO II')
+      expect(d.empresa.servicos).toEqual(['BATERIAS - TODAS'])
+    })
   })
 
   it('ordena os itens pela posição, não pela ordem que vieram', () => {

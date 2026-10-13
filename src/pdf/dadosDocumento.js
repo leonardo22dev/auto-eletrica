@@ -11,6 +11,27 @@ const LINHA_VAZIA = {
   quantidade: '', descricao: '', unitario: '', total: '', vazia: true,
 }
 
+// As fontes padrão do PDF cobrem acento, cedilha e til, mas não os caracteres
+// tipográficos — travessão, bullet, aspas curvas, reticências. Eles somem do
+// papel sem erro nenhum. Numa descrição de serviço, caractere que desaparece
+// em silêncio vira discussão no balcão, então são trocados por equivalentes
+// que a fonte imprime.
+const SUBSTITUICOES = [
+  [/[—–−]/g, '-'],
+  [/[‘’‛]/g, "'"],
+  [/[“”‟]/g, '"'],
+  [/…/g, '...'],
+  [/[•·]/g, '*'],
+  [/ /g, ' '],
+]
+
+export function textoImprimivel(valor) {
+  if (valor == null) return valor
+  let s = String(valor)
+  for (const [de, para] of SUBSTITUICOES) s = s.replace(de, para)
+  return s
+}
+
 function formatarQuantidade(valor) {
   const n = Number(valor) || 0
   return Number.isInteger(n) ? String(n) : String(n).replace('.', ',')
@@ -24,7 +45,7 @@ export function montarDadosDocumento(os, config) {
   // conta é documento que o cliente contesta no balcão.
   const preenchidas = itens.map((i) => ({
     quantidade: formatarQuantidade(i.quantidade),
-    descricao: i.descricao,
+    descricao: textoImprimivel(i.descricao),
     unitario: centavosParaTexto(i.valor_unitario_centavos),
     total: centavosParaTexto(i.valor_total_centavos),
     vazia: false,
@@ -39,24 +60,29 @@ export function montarDadosDocumento(os, config) {
 
   return {
     empresa: {
-      razaoSocial: config.razao_social,
-      cnpj: config.cnpj,
-      inscricaoEstadual: config.inscricao_estadual,
-      endereco: config.endereco,
-      cidadeUf: config.cidade_uf,
-      telefone: config.telefone,
-      email: config.email,
-      servicos: config.servicos_cabecalho || [],
+      razaoSocial: textoImprimivel(config.razao_social),
+      cnpj: textoImprimivel(config.cnpj),
+      inscricaoEstadual: textoImprimivel(config.inscricao_estadual),
+      endereco: textoImprimivel(config.endereco),
+      cidadeUf: textoImprimivel(config.cidade_uf),
+      telefone: textoImprimivel(config.telefone),
+      email: textoImprimivel(config.email),
+      servicos: (config.servicos_cabecalho || []).map(textoImprimivel),
     },
     titulo: tituloDocumento(os.status),
-    numero: os.numero == null ? '—' : String(os.numero),
+    // O travessão do "sem número" também não imprime: no papel vira três
+    // hifens, que é como o talão marcava campo não preenchido.
+    numero: os.numero == null ? '---' : String(os.numero),
     data: dataPorExtenso(os.data_conclusao || os.data_abertura),
-    cliente: { nome: os.cliente_nome, telefone: os.cliente_telefone || '' },
+    cliente: {
+      nome: textoImprimivel(os.cliente_nome),
+      telefone: textoImprimivel(os.cliente_telefone || ''),
+    },
     veiculo: {
-      descricao: os.veiculo_descricao,
+      descricao: textoImprimivel(os.veiculo_descricao),
       placa: formatarPlaca(os.veiculo_placa),
     },
-    textoGarantia: config.texto_garantia,
+    textoGarantia: textoImprimivel(config.texto_garantia),
     linhas,
     total: centavosParaTexto(os.total_centavos),
   }

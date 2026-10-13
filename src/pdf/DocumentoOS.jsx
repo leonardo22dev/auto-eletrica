@@ -16,7 +16,9 @@ const s = StyleSheet.create({
   fone: { fontFamily: 'Helvetica', fontWeight: 700, fontSize: 17 },
   colunaEmpresa: { flex: 1, alignItems: 'flex-end' },
   razao: { fontFamily: 'Times-Roman', fontWeight: 700, fontSize: 21, textAlign: 'right' },
+  linhaServico: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   servico: { fontSize: 6.6, fontWeight: 700, textAlign: 'right', lineHeight: 1.6 },
+  bullet: { width: 2.6, height: 2.6, borderRadius: 1.3, backgroundColor: VERMELHO },
 
   endereco: {
     borderTopWidth: 0.7, borderTopColor: PRETO,
@@ -95,10 +97,13 @@ export default function DocumentoOS({ dados, logoSrc }) {
 
           <View style={s.colunaEmpresa}>
             <Text style={s.razao}>{empresa.razaoSocial}</Text>
+            {/* O bullet do talão é desenhado, não escrito: as fontes padrão
+                do PDF não têm o caractere e ele sairia em branco. */}
             {empresa.servicos.map((servico) => (
-              <Text key={servico} style={s.servico}>
-                {servico} <Text style={{ color: VERMELHO }}>•</Text>
-              </Text>
+              <View key={servico} style={s.linhaServico}>
+                <Text style={s.servico}>{servico}</Text>
+                <View style={s.bullet} />
+              </View>
             ))}
           </View>
         </View>
