@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AppShell from './ui/AppShell.jsx'
+import Configuracoes from './config/Configuracoes.jsx'
 
 function EmBreve({ nome }) {
   return <p className="p-6 text-mute">{nome}</p>
@@ -17,7 +18,7 @@ export default function App() {
         <Route path="clientes/:id" element={<EmBreve nome="Cliente" />} />
         <Route path="veiculos" element={<EmBreve nome="Veículos" />} />
         <Route path="veiculos/:id" element={<EmBreve nome="Ficha do veículo" />} />
-        <Route path="configuracoes" element={<EmBreve nome="Configurações" />} />
+        <Route path="configuracoes" element={<Configuracoes />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
