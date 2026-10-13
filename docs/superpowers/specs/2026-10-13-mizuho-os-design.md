@@ -187,10 +187,17 @@ Orçamento ──aprovar──▶ Aprovada ──finalizar──▶ Finalizada
   numeração nunca saia de ordem cronológica.
 
 A devolução do número é feita por uma função no banco, dentro da mesma transação
-do cancelamento: se `numero` for igual ao valor corrente da sequence, a sequence
-recua em um. Qualquer outro caso não mexe em nada. Fazer isso em transação é o
-que impede duas pessoas cancelando e abrindo OS ao mesmo tempo de gerarem número
-repetido.
+do cancelamento: se `numero` for igual ao valor corrente da sequence e não houver
+OS com número maior, a sequence recua em um e **a OS cancelada fica sem número**.
+Qualquer outro caso não mexe em nada, e a OS cancelada mantém o número dela.
+
+A OS cancelada precisa soltar o número, senão a próxima OS nasceria duplicada.
+Na prática é o comportamento certo: o caso real de devolução é a OS aberta por
+engano e cancelada em seguida, que não deve ocupar número nenhum. Por isso
+`numero` é anulável, com unicidade que ignora nulos.
+
+A condição se protege sozinha contra concorrência: se outra pessoa emitir uma OS
+no intervalo, a sequence já terá avançado, a comparação falha e nada é devolvido.
 
 **OS finalizada aceita edição.** Itens e valores podem ser corrigidos em qualquer
 status, sem travar nada — na oficina, erro de digitação em valor é mais comum que
