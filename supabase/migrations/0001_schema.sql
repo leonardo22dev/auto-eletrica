@@ -1,4 +1,5 @@
-create extension if not exists pgcrypto;
+-- gen_random_uuid() e nativo do Postgres desde a versao 13 e o Supabase roda
+-- 15 ou mais novo, entao nao ha extensao a instalar aqui.
 
 create table configuracoes (
   id                  int primary key default 1 check (id = 1),
