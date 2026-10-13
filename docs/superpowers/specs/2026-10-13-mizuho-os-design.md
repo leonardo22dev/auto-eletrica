@@ -199,6 +199,7 @@ de entregue ao cliente não é documento.
 | `/os/nova` | Nova OS |
 | `/os/:id` | OS aberta: dados, itens, total, garantia, ações |
 | `/clientes` e `/clientes/:id` | Clientes |
+| `/veiculos` | Veículos: busca por placa |
 | `/veiculos/:id` | Ficha do veículo: todas as OS daquele carro |
 | `/configuracoes` | Dados da empresa e numeração |
 
@@ -295,6 +296,7 @@ src/
   clientes/      telas de cliente
   veiculos/      ficha do veículo
   config/        configurações
+  auth/          login e sessão
   lib/           funções puras: dinheiro, placa, datas, garantia
   ui/            componentes compartilhados
 ```
