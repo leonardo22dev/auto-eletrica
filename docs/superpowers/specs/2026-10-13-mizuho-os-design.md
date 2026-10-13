@@ -181,13 +181,32 @@ Orçamento ──aprovar──▶ Aprovada ──finalizar──▶ Finalizada
   `ORDEM DE SERVIÇOS Nº`, mantendo o mesmo número.
 - **Finalizada** — grava `data_conclusao`, que é o que dispara o relógio da
   garantia.
-- **Cancelada** — terminal. O número é consumido e não reaproveitado; buraco na
-  numeração é auditável, número reciclado não é.
+- **Cancelada** — terminal. Se a OS cancelada for a **última emitida**, o número
+  volta para a sequence e a próxima OS nasce com ele. É o caso real: abriu errado
+  e cancelou em seguida. OS antiga cancelada mantém o número dela, para que a
+  numeração nunca saia de ordem cronológica.
 
-**OS finalizada não aceita edição de itens nem de valores.** Um trigger no banco
-bloqueia. Para corrigir, usa-se *Cancelar e refazer*, que cancela a OS e abre uma
-nova já preenchida com os mesmos dados. Documento emitido que muda sozinho depois
-de entregue ao cliente não é documento.
+A devolução do número é feita por uma função no banco, dentro da mesma transação
+do cancelamento: se `numero` for igual ao valor corrente da sequence, a sequence
+recua em um. Qualquer outro caso não mexe em nada. Fazer isso em transação é o
+que impede duas pessoas cancelando e abrindo OS ao mesmo tempo de gerarem número
+repetido.
+
+**OS finalizada aceita edição.** Itens e valores podem ser corrigidos em qualquer
+status, sem travar nada — na oficina, erro de digitação em valor é mais comum que
+fraude, e queimar uma OS por causa de um dígito irrita mais do que protege.
+
+Duas salvaguardas baratas acompanham essa liberdade:
+
+- A OS grava `atualizado_em` e a tela mostra **"editada em dd/mm às hh:mm"**
+  sempre que a edição for posterior à conclusão. Quem abrir a OS vê que ela mudou
+  depois de emitida.
+- O PDF é regerado ao salvar, e o `pdf_path` passa a apontar para a versão nova.
+  O link já enviado ao cliente por WhatsApp passa a servir o PDF corrigido, em vez
+  de continuar entregando o valor errado.
+
+*Duplicar como nova OS* continua existindo, mas como atalho para o carro que volta
+pelo mesmo serviço — não como remendo para corrigir erro.
 
 ## 7. Telas e navegação
 
@@ -331,6 +350,8 @@ Vitest nas funções puras, que é onde erro custa dinheiro:
 - normalização de placa, formato antigo e Mercosul
 - cálculo do vencimento da garantia
 - transições de status válidas e inválidas
+- devolução do número ao cancelar a última OS, e a não-devolução ao cancelar uma
+  OS antiga — incluindo o caso de dois cancelamentos seguidos
 
 Mais um teste que renderiza o documento PDF e confere que os campos chegaram
 nele. Mais o smoke de build, no mesmo padrão já usado no barberpro.
