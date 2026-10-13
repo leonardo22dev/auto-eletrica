@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mizuho OS — Maquete</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#CC2E1E; --red-dark:#9B1F12; --red-tint:#FDEDEA;
+  --ink:#141414; --graphite:#4A4846; --mute:#8A8683;
+  --line:#E4E1DE; --paper:#FFFFFF; --bg:#F6F4F2;
+  --amber:#B45309; --amber-bg:#FEF3C7;
+  --blue:#1D4ED8;  --blue-bg:#DBEAFE;
+  --green:#15803D; --green-bg:#DCFCE7;
+  --ui:'Archivo',system-ui,sans-serif;
+  --serif:'Source Serif 4',Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--ui);background:#17161A;color:#E8E6E3;-webkit-font-smoothing:antialiased}
+.board{max-width:1280px;margin:0 auto;padding:56px 24px 100px}
+.board > header{margin-bottom:56px;border-bottom:1px solid #2E2C32;padding-bottom:28px}
+.kicker{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#8F8A86;font-weight:600}
+h1{font-family:var(--serif);font-size:38px;font-weight:700;margin:10px 0 8px;letter-spacing:-.01em}
+.lead{color:#A9A4A0;max-width:62ch;font-size:15px;line-height:1.6}
+h2{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#CC6A58;font-weight:700;margin:64px 0 6px}
+.h2sub{color:#8F8A86;font-size:14px;margin-bottom:26px;max-width:62ch;line-height:1.6}
+.note{font-size:12px;color:#8F8A86;line-height:1.55;margin-top:10px;max-width:34ch}
+.note b{color:#C9C4C0;font-weight:600}
+
+.idgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px;align-items:start}
+.card{background:#201F24;border:1px solid #2E2C32;border-radius:14px;padding:20px}
+.card h3{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8F8A86;margin-bottom:14px;font-weight:600}
+.sw{display:flex;gap:10px;flex-wrap:wrap}
+.sw div{flex:1;min-width:64px}
+.sw i{display:block;height:54px;border-radius:9px;border:1px solid #38363C}
+.sw span{display:block;font-size:10.5px;margin-top:7px;color:#A9A4A0;letter-spacing:.03em;line-height:1.4}
+.logos{display:flex;gap:18px;align-items:center;background:#fff;border-radius:10px;padding:16px;justify-content:center}
+.logos img{height:88px}
+.typo p{margin-bottom:12px}
+.t-serif{font-family:var(--serif);font-size:25px;font-weight:700;color:#fff}
+.t-ui{font-size:19px;font-weight:700;color:#fff;letter-spacing:-.01em}
+.t-body{font-size:14px;color:#A9A4A0;line-height:1.5}
+.tlabel{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#6E6A67;font-weight:600;display:block;margin-bottom:4px}
+
+.phones{display:flex;gap:30px;flex-wrap:wrap}
+.pwrap{width:300px}
+.pcap{font-size:12.5px;color:#C9C4C0;font-weight:600;margin-bottom:9px;letter-spacing:.02em}
+.phone{width:300px;height:625px;background:var(--bg);border-radius:30px;border:9px solid #0D0D10;
+  box-shadow:0 18px 50px rgba(0,0,0,.5);overflow:hidden;position:relative;color:var(--ink);
+  display:flex;flex-direction:column;font-size:13px}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:96px;height:20px;background:#0D0D10;border-radius:0 0 13px 13px;z-index:30}
+.scroll{flex:1;overflow:hidden;display:flex;flex-direction:column}
+
+.appbar{background:var(--ink);color:#fff;padding:26px 15px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.appbar img{height:28px;background:#fff;border-radius:5px;padding:1px}
+.appbar .nm{font-family:var(--serif);font-size:15px;font-weight:700;line-height:1.1}
+.appbar .sb{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#9A9490}
+.appbar .sp{margin-left:auto}
+.av{width:28px;height:28px;border-radius:50%;background:var(--red);display:grid;place-items:center;font-size:11px;font-weight:700}
+.body{padding:14px;overflow:hidden;flex:1;background:var(--bg)}
+.tabbar{display:flex;background:var(--paper);border-top:1px solid var(--line);flex-shrink:0;padding-bottom:6px}
+.tabbar div{flex:1;text-align:center;padding:9px 0 5px;font-size:9.5px;color:var(--mute);font-weight:600}
+.tabbar div.on{color:var(--red)}
+.tabbar s{display:block;font-size:17px;text-decoration:none;line-height:1.25}
+
+.sec{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);font-weight:700;margin:16px 0 8px}
+.tile{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:12px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--red);color:#fff;
+  border-radius:11px;padding:0 14px;height:50px;font-weight:700;font-size:14px;border:none;width:100%;font-family:var(--ui)}
+.btn.ghost{background:var(--paper);color:var(--ink);border:1.5px solid var(--line)}
+.btn.wa{background:#1FA855}
+.btn.sm{height:42px;font-size:12.5px}
+.chip{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:3px 8px;border-radius:999px}
+.c-orc{background:var(--amber-bg);color:var(--amber)}
+.c-apr{background:var(--blue-bg);color:var(--blue)}
+.c-fin{background:var(--green-bg);color:var(--green)}
+.stats{display:flex;gap:7px;margin-bottom:14px}
+.stat{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:9px 8px}
+.stat b{display:block;font-size:19px;font-weight:800;letter-spacing:-.02em}
+.stat span{font-size:9px;color:var(--mute);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.osrow{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:center}
+.osrow .n{font-weight:800;font-size:12px;color:var(--mute);width:40px;flex-shrink:0}
+.osrow .m{flex:1;min-width:0}
+.osrow .m b{display:block;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.osrow .m span{font-size:11px;color:var(--mute)}
+.osrow .v{text-align:right;flex-shrink:0}
+.osrow .v b{display:block;font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums}
+
+.field{margin-bottom:11px}
+.field label{display:block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);font-weight:700;margin-bottom:5px}
+.input{background:var(--paper);border:1.5px solid var(--line);border-radius:10px;height:50px;display:flex;align-items:center;padding:0 13px;font-size:15px;font-weight:600}
+.input.plate{font-size:23px;font-weight:800;letter-spacing:.14em;border-color:var(--ink);height:60px;justify-content:center}
+.input.ph{color:#B8B4B0;font-weight:500;font-size:14px}
+.found{background:#F0FAF2;border:1px solid #BCE5C8;border-radius:10px;padding:10px 12px;margin-bottom:9px}
+.found b{display:block;font-size:13px;margin-bottom:2px}
+.found span{font-size:11.5px;color:#3D6B4B}
+.warn{background:var(--amber-bg);border:1px solid #F2D479;border-radius:10px;padding:9px 11px;font-size:11.5px;color:#7A4A06;line-height:1.4;margin-bottom:11px}
+.warn b{font-weight:800}
+.item{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:8px}
+.item .top{display:flex;gap:9px;align-items:baseline;margin-bottom:7px}
+.item .qt{font-size:12px;font-weight:800;color:var(--red);flex-shrink:0}
+.item .ds{font-size:13px;font-weight:600;line-height:1.3}
+.item .bot{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mute);border-top:1px dashed var(--line);padding-top:7px}
+.item .bot b{color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums;font-size:13px}
+.add{border:1.5px dashed #CFCBC7;border-radius:11px;height:46px;display:grid;place-items:center;color:var(--red);font-weight:700;font-size:13px}
+.footbar{background:var(--paper);border-top:1px solid var(--line);padding:11px 14px 13px;flex-shrink:0}
+.totline{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.totline span{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);font-weight:700}
+.totline b{font-size:27px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.btnrow{display:flex;gap:8px}
+
+.search{background:var(--paper);border:1.5px solid var(--line);border-radius:11px;height:46px;display:flex;align-items:center;padding:0 13px;color:#B8B4B0;font-size:13.5px;gap:9px;margin-bottom:11px}
+.filters{display:flex;gap:6px;margin-bottom:13px;overflow:hidden}
+.f{font-size:11.5px;font-weight:700;padding:7px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--line);color:var(--graphite);white-space:nowrap}
+.f.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+.dh{background:var(--ink);color:#fff;padding:26px 15px 16px;flex-shrink:0}
+.dh .r1{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.dh .num{font-size:21px;font-weight:800;letter-spacing:-.01em}
+.dh .meta{font-size:11.5px;color:#9A9490}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.kv span{color:var(--mute)}
+.kv b{font-weight:700}
+.minitab{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:3px}
+.minitab th{text-align:left;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);padding:5px 0;border-bottom:1px solid var(--line)}
+.minitab td{padding:6px 0;border-bottom:1px solid #F0EEEC;vertical-align:top}
+.minitab .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.gbar{background:var(--red-tint);border:1px solid #F3C7BF;border-radius:10px;padding:9px 11px;font-size:11.5px;color:var(--red-dark);line-height:1.4;margin-top:11px}
+
+.login{flex:1;background:linear-gradient(165deg,#1B1A1E 0%,#2A1512 55%,var(--red-dark) 140%);
+  display:flex;flex-direction:column;justify-content:center;padding:26px 24px;color:#fff;gap:16px}
+.login .lg{background:#fff;border-radius:16px;padding:12px;width:120px;margin:0 auto 4px}
+.login .lg img{width:100%;display:block}
+.login h4{font-family:var(--serif);font-size:21px;text-align:center;font-weight:700;line-height:1.2}
+.login p{text-align:center;font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;color:#C6A9A3;margin-top:5px;margin-bottom:6px}
+.login .input{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.2);color:#fff}
+.login .input.ph{color:#9E918D}
+.login .lbl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#C6A9A3;font-weight:700;margin-bottom:5px;display:block}
+.login .by{text-align:center;font-size:10px;color:#8A7A76;margin-top:8px;letter-spacing:.06em}
+
+.desk{background:var(--bg);border-radius:12px;border:1px solid #2E2C32;overflow:hidden;color:var(--ink);display:flex;height:530px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.side{width:196px;background:var(--ink);color:#fff;padding:16px 12px;flex-shrink:0}
+.side .br{display:flex;gap:9px;align-items:center;margin-bottom:22px;padding:0 4px}
+.side .br img{height:32px;background:#fff;border-radius:6px;padding:1px}
+.side .br b{font-family:var(--serif);font-size:14px;line-height:1.1;display:block}
+.side .br span{font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;color:#9A9490}
+.side a{display:flex;gap:10px;align-items:center;padding:10px 11px;border-radius:9px;font-size:13px;color:#B5AFAB;font-weight:600;margin-bottom:3px}
+.side a.on{background:var(--red);color:#fff}
+.main{flex:1;padding:20px 24px;overflow:hidden}
+.mtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.mtop h5{font-size:21px;font-weight:800;letter-spacing:-.02em}
+.vcard{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px;display:flex;gap:24px;align-items:center}
+.vcard .plate{font-size:21px;font-weight:800;letter-spacing:.12em;border:2px solid var(--ink);border-radius:7px;padding:7px 13px}
+.vcard .vi b{display:block;font-size:16px;font-weight:700}
+.vcard .vi span{font-size:12.5px;color:var(--mute)}
+.vcard .sp{margin-left:auto;text-align:right}
+table.big{width:100%;border-collapse:collapse;background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+table.big th{text-align:left;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--mute);padding:11px 14px;background:#FBFAF9;border-bottom:1px solid var(--line);font-weight:700}
+table.big td{padding:12px 14px;border-bottom:1px solid #F2F0EE}
+table.big tr:last-child td{border-bottom:none}
+table.big .r{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+
+.pdfwrap{background:#2A2930;padding:34px;border-radius:14px;display:flex;justify-content:center;border:1px solid #38363C}
+.pdf{width:600px;background:#fff;color:#000;padding:22px;font-family:var(--serif);box-shadow:0 14px 40px rgba(0,0,0,.5)}
+.pdf .frame{border:1.6px solid #000;border-radius:7px;padding:9px 11px;display:flex;gap:12px;align-items:center}
+.pdf .frame img{height:76px}
+.pdf .hcenter{flex:0 0 auto}
+.pdf .co{font-size:25px;font-weight:700;text-align:right;letter-spacing:-.01em;line-height:1.05}
+.pdf .co em{font-style:normal;font-size:19px}
+.pdf .svcs{text-align:right;font-family:var(--ui);font-size:8.2px;font-weight:700;line-height:1.62;margin-top:3px}
+.pdf .svcs i{color:var(--red);font-style:normal;margin-left:3px}
+.pdf .fone{font-family:var(--ui);font-size:19px;font-weight:800;display:flex;align-items:center;gap:6px;margin-top:4px}
+.pdf .wa{width:17px;height:17px;border-radius:50%;background:#000;color:#fff;font-size:10px;display:grid;place-items:center}
+.pdf .addr{font-family:var(--ui);font-size:8.4px;text-align:center;border-top:.8px solid #000;margin-top:5px;padding-top:4px;line-height:1.5}
+.pdf .idrow{display:flex;justify-content:space-between;font-family:var(--ui);font-size:8.6px;padding:4px 3px 7px}
+.pdf .block{border:1.6px solid #000;border-radius:7px;padding:11px}
+.pdf .ttl{font-family:var(--ui);font-size:16px;font-weight:800}
+.pdf .ttl b{font-size:19px}
+.pdf .dt{text-align:right;font-family:var(--ui);font-size:10.5px;margin-top:-16px;margin-bottom:9px}
+.pdf .ln{display:flex;gap:16px;font-family:var(--ui);font-size:10.5px;margin-bottom:7px}
+.pdf .ln > div{display:flex;align-items:baseline;gap:5px}
+.pdf .ln .fill{border-bottom:.9px dotted #444;flex:1;font-weight:700;padding:0 3px}
+.pdf .gar{color:var(--red);font-family:var(--ui);font-weight:800;font-size:13.5px;text-align:center;margin:9px 0 2px}
+.pdf table{width:100%;border-collapse:collapse;font-family:var(--ui);font-size:10px;margin-top:8px}
+.pdf th{border:1.1px solid #000;padding:5px 4px;font-weight:700;font-size:9.5px}
+.pdf td{border:1.1px solid #000;padding:4.5px 5px;height:19px}
+.pdf td.c{text-align:center;width:9%}
+.pdf td.n{text-align:right;width:14%;font-variant-numeric:tabular-nums}
+.pdf tr.empty td{color:transparent}
+.pdf .tot{display:flex;justify-content:flex-end;align-items:baseline;gap:12px;margin-top:9px;font-family:var(--ui)}
+.pdf .tot span{font-size:15px;font-weight:800}
+.pdf .tot b{font-size:19px;font-weight:800;border:1.1px solid #000;padding:4px 20px;min-width:130px;text-align:right;font-variant-numeric:tabular-nums}
+.pdf .sign{margin-top:16px;text-align:center}
+.pdf .sign i{display:block;border-top:.9px solid #000;width:200px;margin:0 auto 3px}
+.pdf .sign span{font-family:var(--ui);font-size:9px;font-style:italic}
+.pdfnote{display:flex;gap:26px;margin-top:20px;flex-wrap:wrap}
+.pdfnote .n{flex:1;min-width:210px}
+</style>
+</head>
+<body>
+<div class="board">
+
+<header>
+  <div class="kicker">LB Softwares · maquete descartável — não é o app</div>
+  <h1>Auto Elétrica Mizuho II · Sistema de OS</h1>
+  <p class="lead">Referência visual para aprovação antes da implementação. Dados fictícios. O logo é a extração da foto do talão, em baixa resolução — o arquivo original do cliente substitui isso na versão final.</p>
+</header>
+
+<h2>01 · Identidade</h2>
+<p class="h2sub">Paleta e tipografia tiradas do próprio talão: vermelho do logo amostrado da foto, preto do traço, branco do papel.</p>
+<div class="idgrid">
+  <div class="card">
+    <h3>Logo extraído</h3>
+    <div class="logos"><img src="logo_clean.png" alt="Logo Mizuho"></div>
+    <p class="note">Recuperado da foto e limpo. Serve de referência — <b>peça o arquivo original</b> ao cliente (Wix, Instagram ou material gráfico) para o PDF sair nítido na impressão.</p>
+  </div>
+  <div class="card">
+    <h3>Paleta</h3>
+    <div class="sw">
+      <div><i style="background:#CC2E1E"></i><span>#CC2E1E<br>Vermelho</span></div>
+      <div><i style="background:#9B1F12"></i><span>#9B1F12<br>Vinho</span></div>
+      <div><i style="background:#141414"></i><span>#141414<br>Preto</span></div>
+      <div><i style="background:#F6F4F2"></i><span>#F6F4F2<br>Papel</span></div>
+    </div>
+    <p class="note">Vermelho só em ação e alerta: botão principal, total, garantia. Como fundo de tela inteira ele cansa a vista em oficina com luz forte.</p>
+  </div>
+  <div class="card typo">
+    <h3>Tipografia</h3>
+    <span class="tlabel">Marca e PDF</span>
+    <p class="t-serif">Auto Elétrica Mizuho II</p>
+    <span class="tlabel">Interface</span>
+    <p class="t-ui">Nova Ordem de Serviço</p>
+    <span class="tlabel">Corpo</span>
+    <p class="t-body">Serifa só na marca e no cabeçalho do documento, como no talão. Na interface, sans grotesca — legível em tela pequena, de relance, com a mão suja.</p>
+  </div>
+</div>
+
+<h2>02 · Mobile</h2>
+<p class="h2sub">O celular é onde a OS nasce, em pé ao lado do carro. Alvos de toque de 50px, teclado numérico nos valores, total sempre colado no rodapé.</p>
+<div class="phones">
+
+  <div class="pwrap">
+    <div class="pcap">Entrar</div>
+    <div class="phone"><div class="notch"></div><div class="scroll">
+      <div class="login">
+        <div class="lg"><img src="logo_clean.png" alt=""></div>
+        <h4>Auto Elétrica<br>Mizuho II</h4>
+        <p>Ordens de Serviço</p>
+        <div>
+          <span class="lbl">E-mail</span>
+          <div class="input ph">autoeletricamizuhodois@…</div>
+        </div>
+        <div>
+          <span class="lbl">Senha</span>
+          <div class="input">••••••••</div>
+        </div>
+        <button class="btn">Entrar</button>
+        <div class="by">LB SOFTWARES</div>
+      </div>
+    </div></div>
+    <p class="note">Login único da oficina. Dono e funcionários entram com o mesmo acesso — separar permissão sem ele pedir seria complicar à toa.</p>
+  </div>
+
+  <div class="pwrap">
+    <div class="pcap">Início</div>
+    <div class="phone"><div class="notch"></div><div class="scroll">
+      <div class="appbar">
+        <img src="logo_clean.png" alt="">
+        <div><div class="nm">Mizuho II</div><div class="sb">Ordens de Serviço</div></div>
+        <div class="sp av">M</div>
+      </div>
+      <div class="body">
+        <button class="btn" style="margin-bottom:14px">+&nbsp; Nova OS</button>
+        <div class="stats">
+          <div class="stat"><b>4</b><span>Em aberto</span></div>
+          <div class="stat"><b>2</b><span>Orçam.</span></div>
+          <div class="stat"><b style="font-size:15px">7.340</b><span>Mês R$</span></div>
+        </div>
+        <div class="sec">Recentes</div>
+        <div class="osrow"><div class="n">1042</div><div class="m"><b>João Silva</b><span>GM Chevette · ABC1D23</span></div><div class="v"><b>480,00</b><span class="chip c-fin">Final.</span></div></div>
+        <div class="osrow"><div class="n">1041</div><div class="m"><b>Marcos Pereira</b><span>VW Fusca · DEF2G45</span></div><div class="v"><b>265,00</b><span class="chip c-apr">Aprov.</span></div></div>
+        <div class="osrow"><div class="n">1040</div><div class="m"><b>Ana Ribeiro</b><span>Volvo V70 · HIJ3K67</span></div><div class="v"><b>1.180,00</b><span class="chip c-orc">Orçam.</span></div></div>
+        <div class="osrow"><div class="n">1039</div><div class="m"><b>Carlos Tanaka</b><span>Ford Landau · LMN4P89</span></div><div class="v"><b>620,00</b><span class="chip c-fin">Final.</span></div></div>
+      </div>
+      <div class="tabbar">
+        <div class="on"><s>⌂</s>Início</div><div><s>▤</s>OS</div><div><s>☻</s>Clientes</div><div><s>⚙</s>Ajustes</div>
+      </div>
+    </div></div>
+    <p class="note">Abriu o app, o botão de nova OS já está sob o polegar. Os três números respondem o que o dono pergunta toda manhã.</p>
+  </div>
+
+  <div class="pwrap">
+    <div class="pcap">Nova OS — o coração</div>
+    <div class="phone"><div class="notch"></div><div class="scroll">
+      <div class="appbar"><div><div class="nm">Nova OS</div><div class="sb">Nº 1043 · hoje</div></div><div class="sp" style="font-size:12px;color:#9A9490">Cancelar</div></div>
+      <div class="body">
+        <div class="field">
+          <label>Placa</label>
+          <div class="input plate">ABC1D23</div>
+        </div>
+        <div class="found">
+          <b>GM Chevette 1982 · Bege</b>
+          <span>João Silva · (11) 98888-7777 · 3 OS anteriores</span>
+        </div>
+        <div class="warn"><b>Garantia vigente</b> até 12/11 — OS nº 1042, alternador, concluída em 12/08.</div>
+        <div class="sec">Itens</div>
+        <div class="item">
+          <div class="top"><span class="qt">1×</span><span class="ds">Limpeza de bicos injetores</span></div>
+          <div class="bot"><span>Unit. 280,00</span><b>280,00</b></div>
+        </div>
+        <div class="item">
+          <div class="top"><span class="qt">4×</span><span class="ds">Vela de ignição NGK</span></div>
+          <div class="bot"><span>Unit. 50,00</span><b>200,00</b></div>
+        </div>
+        <div class="add">+ Adicionar item</div>
+      </div>
+      <div class="footbar">
+        <div class="totline"><span>Total</span><b>R$ 480,00</b></div>
+        <div class="btnrow">
+          <button class="btn ghost sm">Orçamento</button>
+          <button class="btn sm">Gerar OS</button>
+        </div>
+      </div>
+    </div></div>
+    <p class="note">A placa vem primeiro e carrega dono, carro e histórico de uma vez — <b>é o atalho que o papel nunca teve</b>. Carro desconhecido abre cadastro ali mesmo.</p>
+  </div>
+
+  <div class="pwrap">
+    <div class="pcap">Histórico</div>
+    <div class="phone"><div class="notch"></div><div class="scroll">
+      <div class="appbar"><div><div class="nm">Ordens de Serviço</div><div class="sb">214 registros</div></div></div>
+      <div class="body">
+        <div class="search">⌕&nbsp; Nº, cliente ou placa</div>
+        <div class="filters"><span class="f on">Todas</span><span class="f">Orçamento</span><span class="f">Aprovada</span><span class="f">Final.</span></div>
+        <div class="osrow"><div class="n">1042</div><div class="m"><b>João Silva</b><span>12/08 · ABC1D23</span></div><div class="v"><b>480,00</b><span class="chip c-fin">Final.</span></div></div>
+        <div class="osrow"><div class="n">1041</div><div class="m"><b>Marcos Pereira</b><span>11/08 · DEF2G45</span></div><div class="v"><b>265,00</b><span class="chip c-apr">Aprov.</span></div></div>
+        <div class="osrow"><div class="n">1040</div><div class="m"><b>Ana Ribeiro</b><span>09/08 · HIJ3K67</span></div><div class="v"><b>1.180,00</b><span class="chip c-orc">Orçam.</span></div></div>
+        <div class="osrow"><div class="n">1039</div><div class="m"><b>Carlos Tanaka</b><span>08/08 · LMN4P89</span></div><div class="v"><b>620,00</b><span class="chip c-fin">Final.</span></div></div>
+        <div class="osrow"><div class="n">1038</div><div class="m"><b>Rita Moraes</b><span>07/08 · QRS5T12</span></div><div class="v"><b>340,00</b><span class="chip c-fin">Final.</span></div></div>
+      </div>
+      <div class="tabbar"><div><s>⌂</s>Início</div><div class="on"><s>▤</s>OS</div><div><s>☻</s>Clientes</div><div><s>⚙</s>Ajustes</div></div>
+    </div></div>
+    <p class="note">Uma busca só atende nº, nome e placa. Na oficina ninguém lembra em qual campo procurar.</p>
+  </div>
+
+  <div class="pwrap">
+    <div class="pcap">OS aberta</div>
+    <div class="phone"><div class="notch"></div><div class="scroll">
+      <div class="dh">
+        <div class="r1"><div class="num">OS nº 1042</div><span class="chip c-fin">Finalizada</span></div>
+        <div class="meta">Aberta 10/08 · concluída 12/08</div>
+      </div>
+      <div class="body">
+        <div class="tile" style="margin-bottom:11px">
+          <div class="kv"><span>Cliente</span><b>João Silva</b></div>
+          <div class="kv"><span>Telefone</span><b>(11) 98888-7777</b></div>
+          <div class="kv"><span>Veículo</span><b>GM Chevette 1982</b></div>
+          <div class="kv" style="border:none"><span>Placa</span><b>ABC1D23</b></div>
+        </div>
+        <div class="tile">
+          <table class="minitab">
+            <tr><th>Qt</th><th>Discriminação</th><th class="r">Total</th></tr>
+            <tr><td>1</td><td>Alternador — recondicionamento</td><td class="r">380,00</td></tr>
+            <tr><td>1</td><td>Correia do alternador</td><td class="r">100,00</td></tr>
+          </table>
+          <div class="totline" style="margin:11px 0 0"><span>Total</span><b style="font-size:22px">R$ 480,00</b></div>
+        </div>
+        <div class="gbar"><b>Garantia de 3 meses</b> para peças com defeito — vigente até <b>12/11/2026</b>.</div>
+      </div>
+      <div class="footbar">
+        <div class="btnrow" style="margin-bottom:8px">
+          <button class="btn ghost sm">⤓ PDF</button>
+          <button class="btn wa sm">WhatsApp</button>
+        </div>
+        <button class="btn ghost sm">Duplicar como nova OS</button>
+      </div>
+    </div></div>
+    <p class="note">PDF e WhatsApp lado a lado: é o que se faz com a OS pronta. <b>Duplicar</b> resolve o retorno do mesmo serviço sem redigitar nada.</p>
+  </div>
+</div>
+
+<h2>03 · Desktop — ficha do veículo</h2>
+<p class="h2sub">No balcão a tela é larga: a mesma base vista pela placa, com tudo que já passou naquele carro.</p>
+<div class="desk">
+  <div class="side">
+    <div class="br"><img src="logo_clean.png" alt=""><div><b>Mizuho II</b><span>Ordens de Serviço</span></div></div>
+    <a>⌂&nbsp; Início</a>
+    <a>▤&nbsp; Ordens de Serviço</a>
+    <a class="on">⛭&nbsp; Veículos</a>
+    <a>☻&nbsp; Clientes</a>
+    <a>⚙&nbsp; Configurações</a>
+  </div>
+  <div class="main">
+    <div class="mtop"><h5>Ficha do veículo</h5><button class="btn" style="width:auto;height:42px">+ Nova OS para este veículo</button></div>
+    <div class="vcard">
+      <div class="plate">ABC1D23</div>
+      <div class="vi"><b>GM Chevette 1982 · Bege</b><span>João Silva · (11) 98888-7777</span></div>
+      <div class="sp"><div style="font-size:11px;color:#8A8683;text-transform:uppercase;letter-spacing:.1em;font-weight:700">Total histórico</div><div style="font-size:21px;font-weight:800">R$ 1.365,00</div></div>
+    </div>
+    <table class="big">
+      <tr><th>Nº</th><th>Data</th><th>Serviço principal</th><th>Status</th><th>Garantia</th><th class="r">Valor</th></tr>
+      <tr><td>1042</td><td>12/08/2026</td><td>Alternador — recondicionamento</td><td><span class="chip c-fin">Finalizada</span></td><td style="color:#15803D;font-weight:700">Vigente até 12/11</td><td class="r">480,00</td></tr>
+      <tr><td>1021</td><td>03/04/2026</td><td>Motor de partida — troca do automático</td><td><span class="chip c-fin">Finalizada</span></td><td style="color:#8A8683">Expirada</td><td class="r">560,00</td></tr>
+      <tr><td>0987</td><td>17/11/2025</td><td>Bateria Moura 60Ah</td><td><span class="chip c-fin">Finalizada</span></td><td style="color:#8A8683">Expirada</td><td class="r">325,00</td></tr>
+    </table>
+  </div>
+</div>
+
+<h2>04 · O PDF</h2>
+<p class="h2sub">Réplica do talão. Mesmo cabeçalho, mesma tarja de garantia, mesma tabela de quatro colunas, mesma linha de assinatura — o cliente dele não percebe que mudou nada, só que agora está impresso.</p>
+<div class="pdfwrap">
+  <div class="pdf">
+    <div class="frame">
+      <img src="logo_clean.png" alt="">
+      <div class="hcenter">
+        <div class="fone"><span class="wa">✆</span> 11 4355-9830</div>
+      </div>
+      <div style="flex:1">
+        <div class="co">Auto Elétrica <b>MIZUHO II</b> <em>Ltda. - ME</em></div>
+        <div class="svcs">
+          SERVIÇOS DE ELETRICIDADE EM GERAL <i>•</i><br>
+          INJEÇÃO ELETRÔNICA <i>•</i><br>
+          LIMPEZA DE BICOS <i>•</i><br>
+          ALTERNADORES <i>•</i><br>
+          PARTIDA <i>•</i><br>
+          BATERIAS <i>•</i>
+        </div>
+      </div>
+    </div>
+    <div class="addr">Avenida Robert Kennedy, 3340 - Assunção - São Bernardo do Campo - SP<br>E-mail: autoeletricamizuhodois@gmail.com</div>
+    <div class="idrow"><span>CNPJ 03.053.178/0001-99</span><span>Inscr. Estadual nº 635.338.217.110</span></div>
+
+    <div class="block">
+      <div class="ttl">ORDEM DE SERVIÇOS &nbsp; Nº <b>1042</b></div>
+      <div class="dt">Data <b>12</b> de <b>agosto</b> de <b>2026</b></div>
+      <div class="ln">
+        <div style="flex:2">Ilmo Sr. <span class="fill">João Silva</span></div>
+        <div style="flex:1">Tel. <span class="fill">(11) 98888-7777</span></div>
+      </div>
+      <div class="ln">
+        <div style="flex:2">Veículo <span class="fill">GM Chevette 1982 — Bege</span></div>
+        <div style="flex:1">Placa <span class="fill">ABC1D23</span></div>
+      </div>
+      <div class="gar">GARANTIA DE 3 (TRÊS) MESES PARA PEÇAS COM DEFEITO</div>
+
+      <table>
+        <tr><th style="width:9%">Quant.</th><th>Discriminação</th><th style="width:14%">Unitário</th><th style="width:14%">Total</th></tr>
+        <tr><td class="c">1</td><td>Alternador — recondicionamento completo</td><td class="n">380,00</td><td class="n">380,00</td></tr>
+        <tr><td class="c">1</td><td>Correia do alternador</td><td class="n">100,00</td><td class="n">100,00</td></tr>
+        <tr class="empty"><td class="c">.</td><td>.</td><td class="n">.</td><td class="n">.</td></tr>
+        <tr class="empty"><td class="c">.</td><td>.</td><td class="n">.</td><td class="n">.</td></tr>
+        <tr class="empty"><td class="c">.</td><td>.</td><td class="n">.</td><td class="n">.</td></tr>
+        <tr class="empty"><td class="c">.</td><td>.</td><td class="n">.</td><td class="n">.</td></tr>
+        <tr class="empty"><td class="c">.</td><td>.</td><td class="n">.</td><td class="n">.</td></tr>
+        <tr class="empty"><td class="c">.</td><td>.</td><td class="n">.</td><td class="n">.</td></tr>
+      </table>
+
+      <div class="tot"><span>TOTAL R$</span><b>480,00</b></div>
+      <div class="sign"><i></i><span>Assinatura do Cliente</span></div>
+    </div>
+  </div>
+</div>
+<div class="pdfnote">
+  <div class="n"><p class="note"><b>Linhas vazias.</b> O talão tem 18 linhas fixas. O PDF preenche as usadas e completa o resto em branco até fechar a página — mantém o peso visual do original e deixa espaço pra anotação à mão na oficina.</p></div>
+  <div class="n"><p class="note"><b>Orçamento.</b> Enquanto o status for orçamento, o título sai <b>ORÇAMENTO Nº</b>. Ao aprovar, vira ORDEM DE SERVIÇOS mantendo o mesmo número.</p></div>
+  <div class="n"><p class="note"><b>PDF de verdade.</b> Vetorial, texto selecionável, não é foto da tela. Imprime nítido em A4 e abre em qualquer celular.</p></div>
+  <div class="n"><p class="note"><b>Logo.</b> Aqui está a extração da foto. Com o arquivo original do cliente, o cabeçalho fica igual ao impresso.</p></div>
+</div>
+
+</div>
+</body>
+</html>
