@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { condicaoIlike } from './filtros.js'
 
 export async function listarClientes({ termo = '' } = {}) {
   let q = supabase.from('clientes')
@@ -6,7 +7,9 @@ export async function listarClientes({ termo = '' } = {}) {
     .order('nome', { ascending: true })
     .limit(100)
   const t = termo.trim()
-  if (t) q = q.or(`nome.ilike.%${t}%,telefone.ilike.%${t}%`)
+  if (t) {
+    q = q.or([condicaoIlike('nome', t), condicaoIlike('telefone', t)].join(','))
+  }
   const { data, error } = await q
   if (error) throw new Error('Não foi possível listar os clientes.')
   return data

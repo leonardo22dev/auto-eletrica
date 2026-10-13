@@ -11,6 +11,7 @@ import { formatarPlaca } from '../lib/placa.js'
 import { formatarBRL } from '../lib/dinheiro.js'
 import { vencimentoGarantia } from '../lib/garantia.js'
 import { salvarRascunho } from './rascunho.js'
+import { editadaDepoisDeEmitida } from './edicao.js'
 import ItensEditor from './ItensEditor.jsx'
 import Botao from '../ui/Botao.jsx'
 import Chip from '../ui/Chip.jsx'
@@ -24,9 +25,7 @@ const ROTULO_ACAO = {
 // Salvaguarda da decisão de permitir editar OS finalizada: quem abrir a OS
 // precisa ver que ela mudou depois de emitida.
 function MarcaDeEdicao({ os }) {
-  if (!os.data_conclusao || !os.atualizado_em) return null
-  const diaAtualizacao = String(os.atualizado_em).slice(0, 10)
-  if (diaAtualizacao <= os.data_conclusao) return null
+  if (!editadaDepoisDeEmitida(os)) return null
   return (
     <p className="mt-1 text-xs text-mute">
       Editada em {formatarDataHora(os.atualizado_em)}
@@ -49,8 +48,8 @@ export default function DetalheOS() {
   const buscar = useCallback(
     () =>
       buscarOrdem(id)
-        .then((o) => { setOs(o); setItens(o.itens); setErro('') })
-        .catch((e) => setErro(e.message))
+        .then((o) => { setOs(o); setItens(o.itens); setErro(''); return o })
+        .catch((e) => { setErro(e.message); return null })
         .finally(() => setCarregando(false)),
     [id],
   )
@@ -70,10 +69,25 @@ export default function DetalheOS() {
     }
   }
 
+  // Salvaguarda que o spec vinculou à decisão de permitir editar OS emitida:
+  // se o PDF já foi enviado por link, o link tem de passar a servir a versão
+  // corrigida — senão o cliente reabre e lê o valor antigo para sempre.
+  async function regerarPdfPublicado(atualizada) {
+    if (!atualizada?.pdf_path || !config) return
+    try {
+      const { republicarPdf } = await import('../pdf/compartilhar.js')
+      await republicarPdf({ os: atualizada, config })
+    } catch {
+      setAviso((a) =>
+        `${a} O PDF publicado não pôde ser atualizado — reenvie pelo WhatsApp.`.trim())
+    }
+  }
+
   const salvarItens = () => executar(async () => {
     await atualizarItens(os.id, itens)
-    await buscar()
+    const atualizada = await buscar()
     setAviso('Itens salvos.')
+    await regerarPdfPublicado(atualizada)
   })
 
   const transicionar = (novo) => executar(async () => {
@@ -87,8 +101,10 @@ export default function DetalheOS() {
       return
     }
     await mudarStatus(os.id, novo)
-    await buscar()
+    const atualizada = await buscar()
     setAviso(`OS marcada como ${rotuloStatus(novo).toLowerCase()}.`)
+    // O título do documento muda com o status, então o PDF publicado também.
+    await regerarPdfPublicado(atualizada)
   })
 
   // O motor de PDF pesa mais de 1 MB. Carregar só no clique mantém leve o
@@ -202,6 +218,15 @@ export default function DetalheOS() {
             {formatarBRL(os.total_centavos)}
           </strong>
         </div>
+
+        {os.observacoes && (
+          <div className="mt-3 rounded-xl border border-linha bg-paper p-3">
+            <h2 className="mb-1 text-[10px] font-bold tracking-[0.14em] text-mute uppercase">
+              Observações
+            </h2>
+            <p className="text-[13px] whitespace-pre-wrap">{os.observacoes}</p>
+          </div>
+        )}
 
         {vencimento && (
           <p className="mt-3 rounded-xl border border-[#F3C7BF] bg-red-tint px-3 py-2.5 text-[11.5px] leading-snug text-red-dark">

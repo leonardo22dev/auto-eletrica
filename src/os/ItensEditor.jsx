@@ -1,8 +1,33 @@
+import { useState } from 'react'
 import { Trash2, Plus } from 'lucide-react'
 import { totalDoItem, formatarBRL, centavosParaTexto, textoParaCentavos } from '../lib/dinheiro.js'
 import { ITEM_VAZIO } from './item.js'
 
 
+
+// O campo guarda o texto enquanto está em edição e, ao sair, reescreve com o
+// valor normalizado. Sem isso, digitar "1.234" deixava o campo mostrando
+// "1.234" enquanto o estado guardava outro número — a tela mentia sobre o
+// que seria salvo.
+function CampoValor({ rotulo, centavos, desabilitado, aoMudar }) {
+  const [texto, setTexto] = useState(null)
+  const exibido = texto ?? centavosParaTexto(centavos)
+
+  return (
+    <input
+      aria-label={rotulo}
+      inputMode="decimal"
+      disabled={desabilitado}
+      value={exibido}
+      onChange={(e) => setTexto(e.target.value)}
+      onBlur={(e) => {
+        aoMudar(textoParaCentavos(e.target.value))
+        setTexto(null)
+      }}
+      className="h-10 w-28 rounded-lg border-[1.5px] border-linha px-2 text-right text-sm font-semibold focus:border-ink focus:outline-none"
+    />
+  )
+}
 
 export default function ItensEditor({ itens, aoMudar, somenteLeitura = false }) {
   function mudarItem(indice, chave, valor) {
@@ -56,15 +81,11 @@ export default function ItensEditor({ itens, aoMudar, somenteLeitura = false }) 
           <div className="flex items-center justify-between gap-2 border-t border-dashed border-linha pt-2">
             <label className="flex items-center gap-2 text-[11.5px] text-mute">
               Unit.
-              <input
-                aria-label={`Valor unitário do item ${i + 1}`}
-                inputMode="decimal"
-                disabled={somenteLeitura}
-                defaultValue={centavosParaTexto(item.valor_unitario_centavos)}
-                onBlur={(e) =>
-                  mudarItem(i, 'valor_unitario_centavos', textoParaCentavos(e.target.value))
-                }
-                className="h-10 w-28 rounded-lg border-[1.5px] border-linha px-2 text-right text-sm font-semibold focus:border-ink focus:outline-none"
+              <CampoValor
+                rotulo={`Valor unitário do item ${i + 1}`}
+                centavos={item.valor_unitario_centavos}
+                desabilitado={somenteLeitura}
+                aoMudar={(c) => mudarItem(i, 'valor_unitario_centavos', c)}
               />
             </label>
             <span className="text-[13px] font-extrabold">

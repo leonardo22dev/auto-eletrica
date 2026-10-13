@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { buscarVeiculo, atualizarVeiculo, descricaoVeiculo } from '../data/veiculos.js'
-import { listarOrdens } from '../data/ordens.js'
+import { listarOrdens, servicoPrincipal } from '../data/ordens.js'
 import { useConfiguracoes } from '../data/configuracoes.js'
 import { formatarPlaca } from '../lib/placa.js'
 import { formatarData, hojeISO } from '../lib/datas.js'
@@ -40,7 +40,7 @@ export default function FichaVeiculo() {
 
   const buscar = useCallback(
     () =>
-      Promise.all([buscarVeiculo(id), listarOrdens({ veiculoId: id })])
+      Promise.all([buscarVeiculo(id), listarOrdens({ veiculoId: id, comItens: true })])
         .then(([v, lista]) => { setVeiculo(v); setOrdens(lista); setErro('') })
         .catch((e) => setErro(e.message))
         .finally(() => setCarregando(false)),
@@ -159,7 +159,7 @@ export default function FichaVeiculo() {
                 >
                   <td className="px-3 py-3 font-bold">{o.numero ?? '—'}</td>
                   <td className="px-3 py-3">{formatarData(o.data_abertura)}</td>
-                  <td className="px-3 py-3">{o.veiculo_descricao}</td>
+                  <td className="px-3 py-3">{servicoPrincipal(o) || <span className="text-mute">sem itens</span>}</td>
                   <td className="px-3 py-3"><Chip status={o.status} /></td>
                   <td className="px-3 py-3"><Garantia os={o} meses={meses} /></td>
                   <td className="px-3 py-3 text-right font-bold">

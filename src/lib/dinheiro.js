@@ -20,18 +20,35 @@ export function textoParaCentavos(texto) {
   if (typeof texto !== 'string') return 0
   let limpo = texto.replace(/[^\d,.-]/g, '')
   if (limpo === '') return 0
-  // Com vírgula, ela é o decimal e o ponto é separador de milhar.
-  // Sem vírgula, um ponto sozinho pode ser decimal.
+
   if (limpo.includes(',')) {
+    // Com vírgula, ela é o decimal e o ponto é separador de milhar.
     limpo = limpo.replace(/\./g, '').replace(',', '.')
+  } else if (/\.\d{3}(?:\.\d{3})*$/.test(limpo)) {
+    // Sem vírgula, ponto seguido de exatamente três dígitos é milhar: em
+    // pt-BR ninguém escreve R$ 1,23 como "1.234". Tratar como decimal daria
+    // erro de mil vezes numa linha do documento.
+    limpo = limpo.replace(/\./g, '')
   }
+
   const valor = Number.parseFloat(limpo)
   if (!Number.isFinite(valor)) return 0
   return Math.round(valor * 100)
 }
 
+// Devolve null quando o texto não é uma quantidade utilizável, para que a
+// tela possa recusar em vez de inventar um valor.
+export function textoParaQuantidade(valor) {
+  if (valor == null) return null
+  const limpo = String(valor).trim().replace(',', '.')
+  if (limpo === '') return null
+  const n = Number.parseFloat(limpo)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return n
+}
+
 export function totalDoItem(quantidade, valorUnitarioCentavos) {
-  const q = Number(quantidade) || 0
+  const q = textoParaQuantidade(quantidade) ?? 0
   const v = Number(valorUnitarioCentavos) || 0
   return Math.round(q * v)
 }

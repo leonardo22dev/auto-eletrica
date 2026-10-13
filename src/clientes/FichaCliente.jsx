@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { buscarCliente, atualizarCliente } from '../data/clientes.js'
 import { formatarPlaca } from '../lib/placa.js'
-import { descricaoVeiculo } from '../data/veiculos.js'
+import { descricaoVeiculo, criarVeiculo } from '../data/veiculos.js'
+import FormVeiculo from '../veiculos/FormVeiculo.jsx'
 import FormCliente from './FormCliente.jsx'
 
 export default function FichaCliente() {
@@ -12,6 +13,7 @@ export default function FichaCliente() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [aviso, setAviso] = useState('')
+  const [adicionandoVeiculo, setAdicionandoVeiculo] = useState(false)
 
   const buscar = useCallback(
     () =>
@@ -27,6 +29,13 @@ export default function FichaCliente() {
   async function salvar(dados) {
     await atualizarCliente(id, dados)
     setAviso('Cliente atualizado.')
+    buscar()
+  }
+
+  async function salvarVeiculo(dados) {
+    await criarVeiculo({ ...dados, cliente_id: id })
+    setAdicionandoVeiculo(false)
+    setAviso('Veículo adicionado.')
     buscar()
   }
 
@@ -56,11 +65,31 @@ export default function FichaCliente() {
         rotuloSalvar="Salvar alterações"
       />
 
-      <h2 className="mt-6 mb-2 text-[10px] font-bold tracking-[0.14em] text-mute uppercase">
-        Veículos ({veiculos.length})
-      </h2>
+      <div className="mt-6 mb-2 flex items-center justify-between">
+        <h2 className="text-[10px] font-bold tracking-[0.14em] text-mute uppercase">
+          Veículos ({veiculos.length})
+        </h2>
+        <button
+          type="button"
+          onClick={() => setAdicionandoVeiculo((v) => !v)}
+          className="text-sm font-semibold text-red"
+        >
+          {adicionandoVeiculo ? 'Cancelar' : '+ Adicionar veículo'}
+        </button>
+      </div>
 
-      {veiculos.length === 0 ? (
+      {adicionandoVeiculo && (
+        <div className="mb-3 rounded-xl border border-linha bg-paper p-4">
+          <FormVeiculo
+            embutido
+            clienteId={cliente.id}
+            aoSalvar={salvarVeiculo}
+            aoCancelar={() => setAdicionandoVeiculo(false)}
+          />
+        </div>
+      )}
+
+      {veiculos.length === 0 && !adicionandoVeiculo ? (
         <p className="rounded-xl border border-dashed border-linha bg-paper px-4 py-6 text-center text-sm text-mute">
           Nenhum veículo cadastrado para este cliente.
         </p>

@@ -225,6 +225,92 @@ describe('cancelar_os', () => {
   })
 })
 
+describe('substituir_itens', () => {
+  it('troca o conjunto de itens e recalcula o total', async () => {
+    const os = await criarOS(db, semente)
+    await adicionarItem(db, os.id, 1, 'Alternador', 38000)
+    await db.query('select substituir_itens($1, $2::jsonb)', [
+      os.id,
+      JSON.stringify([
+        { posicao: 1, quantidade: 1, descricao: 'Bateria',
+          valor_unitario_centavos: 32500, valor_total_centavos: 32500 },
+        { posicao: 2, quantidade: 2, descricao: 'Lâmpada',
+          valor_unitario_centavos: 1500, valor_total_centavos: 3000 },
+      ]),
+    ])
+    expect(await totalDaOS(db, os.id)).toBe(35500)
+    const { rows } = await db.query(
+      'select descricao from os_itens where os_id = $1 order by posicao', [os.id])
+    expect(rows.map((r) => r.descricao)).toEqual(['Bateria', 'Lâmpada'])
+  })
+
+  it('aceita lista vazia, zerando a OS', async () => {
+    const os = await criarOS(db, semente)
+    await adicionarItem(db, os.id, 1, 'Alternador', 38000)
+    await db.query("select substituir_itens($1, '[]'::jsonb)", [os.id])
+    expect(await totalDaOS(db, os.id)).toBe(0)
+  })
+
+  // O ponto da função existir: antes eram duas requisições HTTP, logo duas
+  // transações. Se a inserção falhasse depois do delete, a OS ficava sem
+  // nenhum item e com total zero — documento emitido destruído.
+  it('não perde os itens antigos quando os novos são recusados', async () => {
+    const os = await criarOS(db, semente)
+    await adicionarItem(db, os.id, 1, 'Alternador', 38000)
+
+    await expect(
+      db.query('select substituir_itens($1, $2::jsonb)', [
+        os.id,
+        JSON.stringify([
+          { posicao: 1, quantidade: 1, descricao: 'Inválido',
+            valor_unitario_centavos: -500, valor_total_centavos: -500 },
+        ]),
+      ]),
+    ).rejects.toThrow()
+
+    const { rows } = await db.query(
+      'select descricao from os_itens where os_id = $1', [os.id])
+    expect(rows.map((r) => r.descricao)).toEqual(['Alternador'])
+    expect(await totalDaOS(db, os.id)).toBe(38000)
+  })
+
+  it('reclama de OS inexistente', async () => {
+    await expect(
+      db.query("select substituir_itens($1, '[]'::jsonb)",
+        ['00000000-0000-0000-0000-000000000000']),
+    ).rejects.toThrow(/nao encontrada/)
+  })
+})
+
+describe('data de abertura', () => {
+  // O Supabase roda com TimeZone = UTC. Com `current_date`, uma OS aberta às
+  // 21h30 de 12/08 em São Paulo nasceria datada de 13/08 e o documento sairia
+  // com a data errada.
+  // O valor só divergiria entre 21h e meia-noite, então checar o valor
+  // passaria na maior parte do dia mesmo com o bug. O que precisa ser
+  // verificado é a regra: o default tem de citar o fuso de São Paulo.
+  it('tem default ancorado no fuso de São Paulo, não no do servidor', async () => {
+    const { rows } = await db.query(`
+      select pg_get_expr(d.adbin, d.adrelid) as expressao
+        from pg_attrdef d
+        join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
+       where d.adrelid = 'ordens_servico'::regclass and a.attname = 'data_abertura'`)
+    expect(rows[0].expressao).toContain('America/Sao_Paulo')
+    expect(rows[0].expressao).not.toContain('CURRENT_DATE')
+  })
+
+  it('grava a data de hoje em São Paulo mesmo com o servidor em UTC', async () => {
+    await db.exec("set time zone 'UTC'")
+    const { rows: [agora] } = await db.query(
+      "select to_char((now() at time zone 'America/Sao_Paulo')::date, 'YYYY-MM-DD') as em_sp")
+    const os = await criarOS(db, semente)
+    const { rows } = await db.query(
+      "select to_char(data_abertura, 'YYYY-MM-DD') as d from ordens_servico where id = $1",
+      [os.id])
+    expect(rows[0].d).toBe(agora.em_sp)
+  })
+})
+
 describe('integridade dos cadastros', () => {
   it('recusa placa fora do formato normalizado', async () => {
     await expect(

@@ -16,9 +16,19 @@ export function baixarPdf(blob, nome) {
   URL.revokeObjectURL(url)
 }
 
+// Regera e substitui o PDF já publicado. Precisa gravar exatamente sobre o
+// caminho antigo — se o nome do arquivo fosse recalculado, o link que o
+// cliente tem no WhatsApp continuaria apontando para a versão errada. E o
+// nome muda: uma OS cancelada perde o número.
+export async function republicarPdf({ os, config }) {
+  if (!os?.pdf_path) return null
+  const blob = await gerarPdfDaOS(os, config)
+  return subirPdf(os, blob, os.pdf_path)
+}
+
 // O caminho carrega o uuid da OS: público, mas não adivinhável.
-async function subirPdf(os, blob) {
-  const caminho = `${os.id}/${nomeArquivoPdf(os)}`
+async function subirPdf(os, blob, caminhoExistente) {
+  const caminho = caminhoExistente || `${os.id}/${nomeArquivoPdf(os)}`
   const { error } = await supabase.storage.from(BUCKET)
     .upload(caminho, blob, { contentType: 'application/pdf', upsert: true })
   if (error) throw new Error('Não foi possível enviar o PDF.')

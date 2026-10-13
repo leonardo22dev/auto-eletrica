@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { buscarVeiculoPorPlaca, buscarVeiculo, criarVeiculo, descricaoVeiculo } from '../data/veiculos.js'
 import { criarCliente } from '../data/clientes.js'
-import { criarOrdem, ultimaOrdemDoVeiculo } from '../data/ordens.js'
+import { criarOrdem, ultimaOrdemDoVeiculo, servicoPrincipal } from '../data/ordens.js'
 import { useConfiguracoes } from '../data/configuracoes.js'
 import { normalizarPlaca, placaValida, formatarPlaca } from '../lib/placa.js'
 import { vencimentoGarantia, garantiaVigente } from '../lib/garantia.js'
 import { formatarData, hojeISO } from '../lib/datas.js'
 import { formatarBRL, somarCentavos, totalDoItem } from '../lib/dinheiro.js'
 import { STATUS } from '../lib/status.js'
-import FormCliente from '../clientes/FormCliente.jsx'
+import SelecionarCliente from '../clientes/SelecionarCliente.jsx'
 import FormVeiculo from '../veiculos/FormVeiculo.jsx'
 import ItensEditor from './ItensEditor.jsx'
 import { ITEM_VAZIO } from './item.js'
@@ -26,7 +26,7 @@ export default function NovaOS() {
   const [ultimaOS, setUltimaOS] = useState(null)
   const [consultando, setConsultando] = useState(false)
   const [naoEncontrado, setNaoEncontrado] = useState(false)
-  const [clienteNovo, setClienteNovo] = useState(null)
+  const [donoDoVeiculo, setDonoDoVeiculo] = useState(null)
 
   const [itens, setItens] = useState([{ ...ITEM_VAZIO }])
   const [observacoes, setObservacoes] = useState('')
@@ -66,6 +66,9 @@ export default function NovaOS() {
     setVeiculo(null)
     setUltimaOS(null)
     setNaoEncontrado(false)
+    // Sem limpar o dono, quem escolhesse o cliente e então corrigisse a placa
+    // para uma já cadastrada deixaria a escolha pendurada.
+    setDonoDoVeiculo(null)
     if (!placaValida(p)) return
 
     setConsultando(true)
@@ -80,14 +83,10 @@ export default function NovaOS() {
     }
   }
 
-  async function salvarClienteNovo(dados) {
-    setClienteNovo(await criarCliente(dados))
-  }
-
   async function salvarVeiculoNovo(dados) {
-    const novo = await criarVeiculo({ ...dados, cliente_id: clienteNovo.id })
-    await carregarVeiculo({ ...novo, cliente: clienteNovo })
-    setClienteNovo(null)
+    const novo = await criarVeiculo({ ...dados, cliente_id: donoDoVeiculo.id })
+    await carregarVeiculo({ ...novo, cliente: donoDoVeiculo })
+    setDonoDoVeiculo(null)
   }
 
   async function gerar(status) {
@@ -203,28 +202,39 @@ export default function NovaOS() {
         {emGarantia && ultimaOS && (
           <div className="mb-3 rounded-xl border border-[#F2D479] bg-[#FEF3C7] px-3 py-2.5 text-[11.5px] leading-snug text-[#7A4A06]">
             <strong className="font-extrabold">Garantia vigente</strong> até{' '}
-            {formatarData(vencimento)} — OS nº {ultimaOS.numero ?? '—'}, concluída em{' '}
-            {formatarData(ultimaOS.data_conclusao)}.
+            {formatarData(vencimento)} — OS nº {ultimaOS.numero ?? '—'}
+            {servicoPrincipal(ultimaOS) ? `, ${servicoPrincipal(ultimaOS)}` : ''},
+            concluída em {formatarData(ultimaOS.data_conclusao)}.
           </div>
         )}
 
-        {naoEncontrado && !clienteNovo && (
+        {naoEncontrado && !donoDoVeiculo && (
           <div className="mb-3 rounded-xl border border-linha bg-paper p-4">
             <p className="mb-3 text-sm text-mute">
-              Placa não cadastrada. Cadastre o dono e o veículo aqui mesmo.
+              Placa não cadastrada. Escolha o dono — ou cadastre, se for cliente novo.
             </p>
-            <FormCliente embutido aoSalvar={salvarClienteNovo} />
+            <SelecionarCliente
+              aoEscolher={setDonoDoVeiculo}
+              aoCriar={async (dados) => setDonoDoVeiculo(await criarCliente(dados))}
+            />
           </div>
         )}
 
-        {naoEncontrado && clienteNovo && (
+        {naoEncontrado && donoDoVeiculo && (
           <div className="mb-3 rounded-xl border border-linha bg-paper p-4">
             <p className="mb-3 text-sm text-mute">
-              Cliente <strong>{clienteNovo.nome}</strong> salvo. Agora o veículo.
+              Carro de <strong>{donoDoVeiculo.nome}</strong>.{' '}
+              <button
+                type="button"
+                onClick={() => setDonoDoVeiculo(null)}
+                className="font-semibold text-red underline"
+              >
+                trocar
+              </button>
             </p>
             <FormVeiculo
               embutido
-              clienteId={clienteNovo.id}
+              clienteId={donoDoVeiculo.id}
               valorInicial={{ placa }}
               aoSalvar={salvarVeiculoNovo}
             />
