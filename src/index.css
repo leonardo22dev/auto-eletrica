@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --color-red: #CC2E1E;
+  --color-red-dark: #9B1F12;
+  --color-red-tint: #FDEDEA;
+  --color-ink: #141414;
+  --color-paper: #FFFFFF;
+  --color-linha: #E4E1DE;
+  --color-mute: #8A8683;
+  --font-ui: 'Archivo', system-ui, sans-serif;
+  --font-marca: 'Source Serif 4', Georgia, serif;
+}
+
+:root { color-scheme: light; }
+
+body {
+  margin: 0;
+  background: #F6F4F2;
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Nenhum controle tocável abaixo de 48px. */
+button, a[role="button"], input, select { min-height: 48px; }
