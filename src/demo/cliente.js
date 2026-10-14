@@ -1,4 +1,4 @@
-import { bancoDemo } from './banco.js'
+import { bancoDemo, USUARIO_DEMO_ID } from './banco.js'
 import { separarSelect, montarSelect } from './consulta.js'
 
 // Relacionamentos que a aplicação embute no select. Mapeados à mão de
@@ -12,7 +12,7 @@ const RELACOES = {
 
 
 const USUARIO_DEMO = {
-  id: '99999999-9999-4999-8999-999999999999',
+  id: USUARIO_DEMO_ID,
   email: 'demonstracao@mizuho.local',
 }
 

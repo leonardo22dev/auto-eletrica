@@ -3,6 +3,12 @@ import { PGlite } from '@electric-sql/pglite'
 // OID do tipo date no Postgres.
 const DATE = 1082
 
+// Id do usuário simulado do modo demonstração. Precisa existir em
+// auth.users: `criado_por` aponta para lá, e no Supabase real o usuário
+// logado sempre existe. Sem isso, toda OS criada depois do login violava a
+// chave estrangeira — e os testes não pegavam porque nunca faziam login.
+export const USUARIO_DEMO_ID = '99999999-9999-4999-8999-999999999999'
+
 // O Supabase traz prontos o schema `auth`, o `storage` e os papéis. O PGlite
 // é Postgres puro, então as migrations reais rodam sobre estes stubs.
 const STUBS = `
@@ -65,6 +71,7 @@ export function bancoDemo() {
     // tipo e o cálculo de garantia, que trata datas como texto, falha só aqui.
     const db = await new PGlite({ parsers: { [DATE]: (v) => v } })
     await db.exec(STUBS)
+    await db.query('insert into auth.users (id) values ($1)', [USUARIO_DEMO_ID])
     for (const caminho of Object.keys(MIGRATIONS).sort()) {
       await db.exec(MIGRATIONS[caminho])
     }
