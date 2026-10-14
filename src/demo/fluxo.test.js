@@ -188,3 +188,68 @@ describe('modo demonstração — escrita', () => {
     expect(depois.numero).toBe(null)
   })
 })
+
+describe('modo demonstração — assinatura do cliente', () => {
+  let dadosAss
+
+  beforeAll(async () => {
+    dadosAss = await import('../data/assinatura.js')
+  })
+
+  const PNG =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+
+  async function novaOs(placa, nome, centavos) {
+    return ordens.criarOrdem({
+      dados: {
+        veiculo_placa: placa, data_os: hojeISO(),
+        cliente_nome: nome, cliente_telefone: '',
+        veiculo_descricao: 'Carro',
+      },
+      itens: [{ quantidade: '1', descricao: 'Serviço', valor_unitario_centavos: centavos }],
+    })
+  }
+
+  it('gera o link, o cliente confere e assina, e a OS passa a Aprovada', async () => {
+    const os = await novaOs('ASS1A23', 'Cliente Assina', 25000)
+
+    const { codigo } = await dadosAss.gerarLinkAssinatura(os.id)
+    const visto = await dadosAss.obterOsParaAssinatura(codigo)
+    expect(visto.situacao).toBe('valido')
+    expect(visto.os.total_centavos).toBe(25000)
+
+    await dadosAss.registrarAceite({ codigo, assinatura: PNG, totalVisto: 25000 })
+
+    const depois = await ordens.buscarOrdem(os.id)
+    expect(depois.status).toBe(STATUS.APROVADA)
+    expect(depois.aceite_assinatura).toBe(PNG)
+    expect((await dadosAss.obterOsParaAssinatura(codigo)).situacao).toBe('assinado')
+  })
+
+  it('o banco recusa alterar os itens depois do aceite', async () => {
+    const os = await novaOs('ASS2A23', 'Cliente Trava', 10000)
+    const { codigo } = await dadosAss.gerarLinkAssinatura(os.id)
+    await dadosAss.registrarAceite({ codigo, assinatura: PNG, totalVisto: 10000 })
+
+    await expect(ordens.atualizarItens(os.id, [
+      { quantidade: '1', descricao: 'Outro', valor_unitario_centavos: 99999 },
+    ])).rejects.toThrow()
+  })
+
+  it('total divergente é recusado com o código que a tela entende', async () => {
+    const os = await novaOs('ASS3A23', 'Cliente Diverge', 10000)
+    const { codigo } = await dadosAss.gerarLinkAssinatura(os.id)
+    const erro = await dadosAss.registrarAceite({ codigo, assinatura: PNG, totalVisto: 1 })
+      .catch((e) => e)
+    expect(erro.codigo).toBe('total_divergente')
+  })
+
+  // Aponta para a OS da semente pelo id: contar "alguma aguardando" se
+  // satisfazia sozinho com as OS que os testes acima deixam com link enviado.
+  it('a OS da semente nasce com link enviado e ainda sem assinatura', async () => {
+    const os = await ordens.buscarOrdem('bbbbbbbb-3333-4333-8333-333333333333')
+    expect(os.assinatura_codigo).toMatch(/^[0-9a-f]{64}$/)
+    expect(os.aceite_em).toBe(null)
+    expect(os.status).toBe(STATUS.ORCAMENTO)
+  })
+})

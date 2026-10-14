@@ -58,6 +58,17 @@ const SEMENTE = `
     ('bbbbbbbb-3333-4333-8333-333333333333', 1, 1, 'Módulo de injeção — diagnóstico', 18000, 18000),
     ('bbbbbbbb-3333-4333-8333-333333333333', 2, 1, 'Bateria Moura 60Ah', 32500, 32500);
 
+  -- Uma OS com link enviado e ainda sem assinatura, para o Início mostrar
+  -- "aguardando". Escrita com o sinalizador que as funções do banco usam,
+  -- porque a trava barra a escrita direta nessas colunas.
+  begin;
+  select set_config('mizuho.via_funcao', 'on', true);
+  update ordens_servico
+     set assinatura_codigo = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+         assinatura_expira_em = now() + interval '20 days'
+   where id = 'bbbbbbbb-3333-4333-8333-333333333333';
+  commit;
+
   select setval('os_numero_seq', (select max(numero) from ordens_servico), true);
 `
 

@@ -17,6 +17,9 @@ Feito por **LB Softwares**.
 - Ciclo **Orçamento → Aprovada → Finalizada**, mais Cancelada.
 - PDF replicando o talão, com as 18 linhas e a tarja da garantia.
 - Envio por WhatsApp: anexo direto no celular, link no desktop.
+- Assinatura do cliente: a mensagem leva também um link, onde o cliente confere a
+  OS e assina com o dedo. O aceite trava itens e valores no banco e sai impresso
+  no PDF. O link vale 30 dias e abre sem login.
 - Histórico em tela própria, com busca por nome, placa ou número.
 - Instalável como app no celular.
 
@@ -39,6 +42,11 @@ As migrations ficam em `supabase/migrations/`, numeradas e aplicadas em ordem:
 npx supabase link --project-ref <ref-do-projeto>
 npx supabase db push
 ```
+
+Para quem já tem o banco de pé, a atualização da assinatura é só
+`supabase/atualizacao-0007.sql`, colada no SQL Editor. Ela também retira dos
+visitantes a permissão de executar as funções internas do banco, que o Supabase
+concede por padrão.
 
 Depois, no painel do Supabase:
 
