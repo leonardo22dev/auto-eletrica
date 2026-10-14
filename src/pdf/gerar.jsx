@@ -2,7 +2,9 @@ import { pdf } from '@react-pdf/renderer'
 import DocumentoOS from './DocumentoOS.jsx'
 import { montarDadosDocumento } from './dadosDocumento.js'
 
-const LOGO = '/logo-mizuho.png'
+// JPEG, e não o PNG do app: o logo tem fundo branco e vai embutido em cada
+// PDF guardado, então o arquivo menor poupa o Storage a cada OS.
+const LOGO = '/logo-mizuho-pdf.jpg'
 
 export function nomeArquivoPdf(os) {
   const base = os.numero == null ? 'sem-numero' : os.numero
