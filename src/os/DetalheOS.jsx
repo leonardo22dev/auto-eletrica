@@ -20,6 +20,7 @@ import { gerarLinkAssinatura } from '../data/assinatura.js'
 import { situacaoDoLink } from '../assinatura/estado.js'
 import { urlDeAssinatura, baseDaUrl } from '../assinatura/codigo.js'
 import BlocoAssinatura from '../assinatura/BlocoAssinatura.jsx'
+import AtividadeDaOs from './AtividadeDaOs.jsx'
 
 // Endereço que o CLIENTE vai abrir. Configurável porque o dono pode estar num
 // preview da Vercel ou numa rede local, cujo endereço não abre para ele.
@@ -325,6 +326,8 @@ export default function DetalheOS() {
             <p className="text-[13px] whitespace-pre-wrap">{os.observacoes}</p>
           </div>
         )}
+
+        <AtividadeDaOs osId={os.id} recarregarEm={os.atualizado_em} />
 
         {/* A informação é útil nos dois casos; o que não pode é a tela
             afirmar vigência de uma garantia vencida, no balcão, para o
