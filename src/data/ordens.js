@@ -7,7 +7,8 @@ import { validarDadosDaOs } from '../os/dadosOs.js'
 
 const CAMPOS_LISTA =
   'id, numero, status, cliente_nome, cliente_telefone, veiculo_placa, ' +
-  'veiculo_descricao, data_os, total_centavos'
+  'veiculo_descricao, data_os, total_centavos, ' +
+  'aceite_em, assinatura_codigo, assinatura_expira_em'
 
 const CAMPOS_LISTA_COM_ITEM = `${CAMPOS_LISTA}, itens:os_itens(posicao, descricao)`
 

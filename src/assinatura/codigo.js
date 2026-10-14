@@ -1,0 +1,11 @@
+// O código tem 64 caracteres hexadecimais. Extrair os 64 primeiros é o que
+// torna a página tolerante ao que o WhatsApp e o copiar-e-colar anexam: espaço,
+// quebra de linha, ponto, vírgula, parêntese.
+export function normalizarCodigo(texto) {
+  const limpo = String(texto ?? '').trim().toLowerCase()
+  return limpo.match(/^[0-9a-f]{64}/)?.[0] ?? ''
+}
+
+export function urlDeAssinatura(base, codigo) {
+  return `${String(base).replace(/\/+$/, '')}/assinar/${codigo}`
+}
