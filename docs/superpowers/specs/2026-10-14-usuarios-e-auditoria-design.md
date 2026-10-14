@@ -3,7 +3,7 @@
 **Cliente:** Auto Elétrica Mizuho II Ltda. — ME
 **Desenvolvedor:** LB Softwares
 **Data:** 2026-10-14
-**Status:** aguardando revisão
+**Status:** aprovado para planejamento
 **Emenda a:** `2026-10-13-mizuho-os-design.md`. Onde este documento contradiz a
 regra "a oficina inteira usa o mesmo nível de acesso" (RLS, migration 0003),
 vale este.
@@ -74,8 +74,10 @@ funções), o ciclo de status, a numeração, o PDF e a hospedagem.
 | `criado_em`, `criado_por` | | `criado_por` com `on delete set null` |
 
 Migração dos usuários que já existem: todos viram `admin`, com `usuario` igual à
-parte antes do `@` do e-mail. A migration **aborta** se, depois disso, não
-houver nenhum administrador ativo.
+parte antes do `@` do e-mail. Um gatilho em `auth.users` torna o **primeiro**
+usuário de um projeto novo administrador (sem isso, quem instala do zero não
+entraria). A migration **aborta** se existirem usuários e nenhum virar
+administrador.
 
 `authenticated` só **lê** `perfis` (a própria linha; o administrador, todas).
 Não há `insert`, `update` nem `delete` direto: tudo passa pelas funções.
@@ -100,17 +102,18 @@ Ações: `criada`, `dados_alterados` (`{campo: {de, para}}`), `itens_alterados`
 ### 5.3 `usuarios_historico`
 
 Mesma ideia, para a gestão de usuários: `ator_id`, `ator_nome`, `alvo_id`,
-`alvo_usuario`, `acao` (`criado`, `papel_alterado`, `bloqueado`, `reativado`,
-`senha_redefinida`), `detalhe`, `em`. Escrito pelas próprias funções.
+`alvo_usuario`, `acao` (`criado`, `nome_alterado`, `papel_alterado`, `bloqueado`,
+`reativado`, `senha_redefinida`), `detalhe`, `em`. Escrito pelas próprias funções.
 Aparece como "Atividade recente" na aba Usuários, visível ao administrador.
 
 ## 6. Funções (todas `security definer`, `search_path` fixo)
 
-Qualquer função `security definer` ignora o RLS. Por isso **cada função
-existente que `authenticated` pode chamar passa a começar por
-`usuario_ativo()`**, senão um usuário bloqueado ainda cancelaria OS pela API:
-`cancelar_os`, `substituir_itens`, `gerar_link_assinatura`, `versao_da_os`.
-`definir_proximo_numero` exige administrador.
+Qualquer função `security definer` ignora o RLS. Por isso `gerar_link_assinatura`
+(a única existente que é `security definer` e que `authenticated` chama) passa a
+começar por `usuario_ativo()`, senão um usuário bloqueado ainda geraria links
+pela API. `cancelar_os` e `substituir_itens` são `security invoker`: o RLS já
+as barra ("OS não encontrada"). `versao_da_os` nem é chamável por usuário.
+`definir_proximo_numero` passa a exigir administrador.
 
 | Função | Quem | O que faz |
 |---|---|---|
@@ -121,11 +124,13 @@ existente que `authenticated` pode chamar passa a começar por
 | `alterar_usuario(user_id, nome, papel, ativo)` | admin | muda os dados; bloquear aplica `banned_until` e apaga `auth.sessions` |
 | `redefinir_senha(user_id, senha)` | admin | troca o hash e encerra as sessões do alvo |
 
-Travas, dentro das funções e sob lock (`pg_advisory_xact_lock`) para que dois
+Travas, dentro das funções. O lock (`pg_advisory_xact_lock`) é adquirido
+**antes** de conferir se quem chama é administrador, para que dois
 administradores não se rebaixem ao mesmo tempo:
 
 - ninguém altera o **próprio** papel nem o próprio `ativo`;
-- a operação que deixaria **zero administradores ativos** é recusada;
+- a operação que deixaria **zero administradores ativos** é recusada (guarda
+  defensiva: com a regra acima, só é alcançável por concorrência ou regressão);
 - `usuario` repetido, formato inválido, senha curta e papel desconhecido são
   recusados com mensagem em português.
 
@@ -148,16 +153,20 @@ tela é só cortesia.
 
 - **Login:** perfil ausente ou inativo desloga e mostra "Acesso bloqueado. Fale
   com o administrador." A sessão é revalidada quando a aba volta ao foco.
-- **Navegação:** "Usuários" e "Ajustes" só para administrador; a rota
-  `/usuarios` redireciona o atendente para o início.
+- **Navegação:** "Usuários" e "Ajustes" só para administrador; as rotas
+  `/usuarios` e `/configuracoes` redirecionam o atendente para o início. O nome
+  de quem está logado, o nível e o **Sair** aparecem na casca do app, para todos.
 - **Usuários:** lista com nome, usuário, nível e situação; "Novo usuário";
   por linha: editar nome e nível, bloquear/reativar (com confirmação) e
   redefinir senha. Na própria linha aparece "Você" e some o que é proibido.
   Abaixo, "Atividade recente".
-- **Detalhe da OS:** seção **Histórico**, em ordem cronológica, ex.:
+- **Detalhe da OS:** seção **Atividade** (o nome "Histórico" já é a aba da lista
+  de OS), em ordem cronológica, ex.:
   "14/10 15:32 · Maria alterou os itens (R$ 380,00 → R$ 480,00)".
 - **Demonstração:** o banco local do modo demo ganha perfis, as quatro funções
-  e o histórico, para o fluxo continuar testável sem Supabase.
+  e o histórico, para o fluxo continuar testável sem Supabase. Continua com um
+  único usuário simulado: qualquer login entra como o administrador de
+  demonstração.
 
 ## 9. Publicação e riscos
 

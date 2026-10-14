@@ -9,7 +9,12 @@ Feito por **LB Softwares**.
 
 ## O que faz
 
-- Login por e-mail e senha, sem autocadastro.
+- Login por usuário e senha, sem autocadastro.
+- Dois níveis de acesso: **Administrador** (aba Usuários e Ajustes) e
+  **Atendente** (faz OS). O administrador cria, bloqueia e reativa pessoas e
+  redefine senhas; o bloqueio vale na hora, mesmo com o app aberto.
+- Cada OS mostra, em *Atividade*, quem criou, quem mudou o quê e quando. O
+  registro é gravado no banco e ninguém o apaga pela tela.
 - OS autossuficiente: nome, telefone, veículo, placa e data digitados nela.
 - A placa consulta as OS anteriores e oferece os dados da última vez, sem cadastro.
 - OS com itens (quantidade, discriminação, unitário, total) e total calculado
@@ -48,6 +53,13 @@ Para quem já tem o banco de pé, a atualização da assinatura é só
 visitantes a permissão de executar as funções internas do banco, que o Supabase
 concede por padrão.
 
+A atualização de usuários e níveis de acesso é `supabase/atualizacao-usuarios.sql`:
+cole no SQL Editor e rode **uma vez, antes de publicar o app**. É tudo ou nada.
+Quem já usava o sistema vira administrador; num projeto novo, o primeiro usuário
+criado vira administrador. Usuário criado direto no painel do Supabase depois
+disso **não entra**: falta o perfil. Crie pela aba Usuários. Para apagar alguém
+de vez, use *Authentication → Users* no painel; as OS dela permanecem.
+
 Depois, no painel do Supabase:
 
 1. *Authentication → Users*: crie o usuário da oficina com **Auto Confirm User**.
@@ -81,6 +93,7 @@ Supabase.
 |---|---|
 | `docs/superpowers/specs/2026-10-13-mizuho-os-design.md` | Spec: decisões e por quê |
 | `docs/superpowers/specs/2026-10-14-os-sem-cadastro-design.md` | Emenda: OS sem cadastro |
+| `docs/superpowers/specs/2026-10-14-usuarios-e-auditoria-design.md` | Emenda: usuários, níveis e atividade |
 | `docs/superpowers/plans/2026-10-13-mizuho-os.md` | Plano de implementação |
 | `docs/maquete.html` | Maquete visual aprovada — abra no navegador |
 | `docs/logo_clean.png` | Logo extraído da foto do talão (provisório) |
