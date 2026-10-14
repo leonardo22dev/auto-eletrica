@@ -209,10 +209,20 @@ export const clienteDemo = {
     // com conta de verdade. O aviso na tela deixa isso explícito.
     async signInWithPassword({ email }) {
       sessao = { user: { ...USUARIO_DEMO, email: email || USUARIO_DEMO.email } }
+      // As funções do banco leem quem está logado em auth.uid(), que lê este
+      // sinalizador: é o que o PostgREST faz com o JWT no Supabase de verdade.
+      const db = await bancoDemo()
+      await db.query("select set_config('request.jwt.claim.sub', $1, false)", [USUARIO_DEMO_ID])
       avisar()
       return { data: { session: sessao }, error: null }
     },
-    async signOut() { sessao = null; avisar(); return { error: null } },
+    async signOut() {
+      sessao = null
+      const db = await bancoDemo()
+      await db.query("select set_config('request.jwt.claim.sub', '', false)")
+      avisar()
+      return { error: null }
+    },
     onAuthStateChange(fn) {
       ouvintes.add(fn)
       return { data: { subscription: { unsubscribe: () => ouvintes.delete(fn) } } }

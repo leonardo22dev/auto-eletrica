@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { criarBanco, como, criarOS, adicionarItem } from './banco-de-teste.js'
+import { criarBanco, como, criarOS, adicionarItem, entrarComo } from './banco-de-teste.js'
 
 async function totalDaOS(db, osId) {
   const { rows } = await db.query(
@@ -12,6 +12,9 @@ let db
 
 beforeEach(async () => {
   db = await criarBanco()
+  // Estes testes chamam as funções do sistema como dono, mas com um usuário
+  // ativo logado: é o que elas exigem desde a migration 0008.
+  await entrarComo(db)
 })
 
 describe('migrations', () => {

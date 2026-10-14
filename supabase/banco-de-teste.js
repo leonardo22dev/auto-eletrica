@@ -52,16 +52,25 @@ export async function criarBanco({ ate } = {}) {
 // Executa como um papel do Supabase e volta a ser dono. Para `authenticated`,
 // informa quem é o usuário (o `sub` do JWT), que é o que auth.uid() lê.
 export async function como(db, papel, fn, uid = USUARIO_TESTE) {
+  const { rows: [{ anterior }] } = await db.query(
+    "select coalesce(current_setting('request.jwt.claim.sub', true), '') as anterior")
   await db.exec(`set role ${papel}`)
-  if (papel === 'authenticated') {
-    await db.query("select set_config('request.jwt.claim.sub', $1, false)", [uid])
-  }
+  // O visitante (anon) não tem `sub`; o usuário logado tem o do seu JWT.
+  await db.query("select set_config('request.jwt.claim.sub', $1, false)",
+    [papel === 'authenticated' ? uid : ''])
   try {
     return await fn()
   } finally {
     await db.exec('reset role')
-    await db.exec("select set_config('request.jwt.claim.sub', '', false)")
+    // Devolve o que havia: um teste pode manter alguém logado como dono.
+    await db.query("select set_config('request.jwt.claim.sub', $1, false)", [anterior])
   }
+}
+
+// Mantém um usuário logado na sessão do banco, mesmo executando como dono.
+// É o caso de quem chama uma função do sistema com a sessão aberta.
+export function entrarComo(db, uid = USUARIO_TESTE) {
+  return db.query("select set_config('request.jwt.claim.sub', $1, false)", [uid])
 }
 
 export async function criarOS(db, extra = {}) {

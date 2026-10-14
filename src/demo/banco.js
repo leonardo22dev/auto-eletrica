@@ -54,6 +54,10 @@ const SEMENTE = `
    where id = 'bbbbbbbb-3333-4333-8333-333333333333';
   commit;
 
+  -- O perfil do usuário simulado nasceu da migration 0008 com o nome do e-mail.
+  update perfis set nome = 'Demonstração', usuario = 'demo'
+   where user_id = '99999999-9999-4999-8999-999999999999';
+
   select setval('os_numero_seq', (select max(numero) from ordens_servico), true);
 `
 

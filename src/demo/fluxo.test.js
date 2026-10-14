@@ -15,6 +15,9 @@ beforeAll(async () => {
   const g = await import('../lib/garantia.js')
   vencimentoGarantia = g.vencimentoGarantia
   garantiaVigente = g.garantiaVigente
+  // As funções do banco agora exigem usuário ativo.
+  const { supabase } = await import('../data/supabase.js')
+  await supabase.auth.signInWithPassword({ email: 'teste@teste.com', password: 'x' })
 })
 
 describe('modo demonstração — leitura', () => {
