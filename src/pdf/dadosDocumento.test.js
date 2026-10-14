@@ -199,6 +199,50 @@ describe('tamanhoDaRazaoSocial', () => {
   })
 })
 
+// Modo "Valor total": serviços sem preço e uma linha "Valor total" no fim. O
+// documento mostra os serviços com as colunas de valor em branco e o valor só
+// na linha de fechamento, que é onde o cliente procura.
+describe('valor total no documento', () => {
+  const SERVICOS = {
+    ...OS,
+    total_centavos: 120000,
+    itens: [
+      { posicao: 1, quantidade: 1, descricao: 'Troca de alternador',
+        valor_unitario_centavos: 0, valor_total_centavos: 0 },
+      { posicao: 2, quantidade: 2, descricao: 'Troca de baterias',
+        valor_unitario_centavos: 0, valor_total_centavos: 0 },
+      { posicao: 3, quantidade: 1, descricao: 'Valor total',
+        valor_unitario_centavos: 120000, valor_total_centavos: 120000 },
+    ],
+  }
+
+  it('serviço sem preço sai com as colunas de valor em branco', () => {
+    const d = montarDadosDocumento(SERVICOS, CONFIG)
+    expect(d.linhas[0]).toEqual({
+      quantidade: '1', descricao: 'Troca de alternador',
+      unitario: '', total: '', vazia: false,
+    })
+    expect(d.linhas[1]).toMatchObject({ quantidade: '2', unitario: '', total: '' })
+  })
+
+  it('a linha "Valor total" leva o valor só na coluna do total', () => {
+    const d = montarDadosDocumento(SERVICOS, CONFIG)
+    expect(d.linhas[2]).toEqual({
+      quantidade: '', descricao: 'Valor total',
+      unitario: '', total: '1.200,00', vazia: false,
+    })
+  })
+
+  it('o total do rodapé é o valor total', () => {
+    expect(montarDadosDocumento(SERVICOS, CONFIG).total).toBe('1.200,00')
+  })
+
+  it('OS itemizada continua imprimindo unitário e total', () => {
+    const d = montarDadosDocumento(OS, CONFIG)
+    expect(d.linhas[0]).toMatchObject({ unitario: '380,00', total: '380,00' })
+  })
+})
+
 describe('assinatura do cliente no documento', () => {
   const PNG = 'data:image/png;base64,iVBORw0KGgo='
 

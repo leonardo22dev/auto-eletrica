@@ -2,6 +2,7 @@ import { tituloDocumento } from '../lib/status.js'
 import { dataPorExtenso } from '../lib/datas.js'
 import { formatarPlaca } from '../lib/placa.js'
 import { centavosParaTexto } from '../lib/dinheiro.js'
+import { ehLinhaValorTotal, itemSemPreco } from '../os/valorTotal.js'
 import { formatarDataHora } from '../lib/datas.js'
 
 // O talão de papel tem 18 linhas fixas. Manter isso preserva o peso visual
@@ -69,13 +70,19 @@ export function montarDadosDocumento(os, config) {
   // Sem corte em 18: uma OS com mais itens imprime todos. Truncar deixaria o
   // TOTAL maior que a soma das linhas visíveis, e documento que não fecha a
   // conta é documento que o cliente contesta no balcão.
-  const preenchidas = itens.map((i) => ({
-    quantidade: formatarQuantidade(i.quantidade),
-    descricao: textoImprimivel(i.descricao),
-    unitario: centavosParaTexto(i.valor_unitario_centavos),
-    total: centavosParaTexto(i.valor_total_centavos),
-    vazia: false,
-  }))
+  // Item de valor zero sai sem preço (serviço do modo "Valor total"), e a
+  // linha "Valor total" leva o valor só na coluna do total.
+  const preenchidas = itens.map((i) => {
+    const fechamento = ehLinhaValorTotal(i) && !itemSemPreco(i)
+    const semPreco = itemSemPreco(i)
+    return {
+      quantidade: fechamento ? '' : formatarQuantidade(i.quantidade),
+      descricao: textoImprimivel(i.descricao),
+      unitario: semPreco || fechamento ? '' : centavosParaTexto(i.valor_unitario_centavos),
+      total: semPreco ? '' : centavosParaTexto(i.valor_total_centavos),
+      vazia: false,
+    }
+  })
 
   const linhas = preenchidas.concat(
     Array.from(

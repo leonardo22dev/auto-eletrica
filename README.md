@@ -19,6 +19,10 @@ Feito por **LB Softwares**.
 - A placa consulta as OS anteriores e oferece os dados da última vez, sem cadastro.
 - OS com itens (quantidade, discriminação, unitário, total) e total calculado
   pelo banco.
+- Dois jeitos de montar os itens: **Detalhar valores** (preço de cada item) ou
+  **Valor total** (só os serviços e o valor fechado com o cliente). No PDF e na
+  página de assinatura, os serviços saem sem preço e o valor total aparece no
+  fim. Não há campo novo no banco: o valor total é a última linha da OS.
 - Ciclo **Orçamento → Aprovada → Finalizada**, mais Cancelada.
 - PDF replicando o talão, com as 18 linhas e a tarja da garantia.
 - Envio por WhatsApp: anexo direto no celular, link no desktop.
@@ -96,12 +100,13 @@ Supabase.
 | `docs/superpowers/specs/2026-10-14-usuarios-e-auditoria-design.md` | Emenda: usuários, níveis e atividade |
 | `docs/superpowers/plans/2026-10-13-mizuho-os.md` | Plano de implementação |
 | `docs/maquete.html` | Maquete visual aprovada — abra no navegador |
-| `docs/logo_clean.png` | Logo extraído da foto do talão (provisório) |
+| `docs/logo_clean.png` | Logo oficial do cliente, recortado do arquivo original |
+
+O logo do app está em `public/logo-mizuho.png` (cabeçalho, login e assinatura) e
+em `public/logo-mizuho-pdf.jpg` (PDF, mais leve porque vai embutido em cada
+arquivo). Os ícones do app instalado são `public/icone-*.png`.
 
 ## Pendências
 
-- **Logo em alta resolução.** O arquivo em uso foi extraído da foto do talão e
-  serve para tela, não para impressão. Pedir o original ao cliente e substituir
-  `public/logo-mizuho.png`.
 - **Numeração inicial.** Conferir com o dono o último número do talão de papel
   antes da primeira OS real.

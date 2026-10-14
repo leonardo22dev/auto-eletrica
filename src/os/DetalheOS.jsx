@@ -12,7 +12,7 @@ import { formatarBRL } from '../lib/dinheiro.js'
 import { situacaoGarantia } from './situacaoGarantia.js'
 import { salvarRascunho } from './rascunho.js'
 import { editadaDepoisDeEmitida } from './edicao.js'
-import ItensEditor from './ItensEditor.jsx'
+import EditorDeItens from './EditorDeItens.jsx'
 import CamposDaOs from './CamposDaOs.jsx'
 import Botao from '../ui/Botao.jsx'
 import Chip from '../ui/Chip.jsx'
@@ -296,7 +296,7 @@ export default function DetalheOS() {
         <h2 className="mb-2 text-[10px] font-bold tracking-[0.14em] text-mute uppercase">
           Itens
         </h2>
-        <ItensEditor itens={itens} aoMudar={setItens} somenteLeitura={Boolean(os.aceite_em)} />
+        <EditorDeItens itens={itens} aoMudar={setItens} somenteLeitura={Boolean(os.aceite_em)} />
 
         {!os.aceite_em && (
           <div className="mt-2">

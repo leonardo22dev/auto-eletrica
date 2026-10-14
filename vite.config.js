@@ -24,12 +24,5 @@ export default defineConfig(({ command, mode }) => {
   }
   return {
     plugins: [react(), tailwindcss()],
-    test: {
-      // Cada arquivo de teste de banco sobe um Postgres em WebAssembly e aplica
-      // as migrations uma vez. Com a suíte inteira em paralelo, o primeiro
-      // gancho passava dos 10 s padrão de vez em quando.
-      hookTimeout: 60_000,
-      testTimeout: 30_000,
-    },
   }
 })

@@ -10,7 +10,7 @@ import { formatarData, hojeISO } from '../lib/datas.js'
 import { formatarBRL, somarCentavos, totalDoItem } from '../lib/dinheiro.js'
 import { STATUS } from '../lib/status.js'
 import CamposDaOs from './CamposDaOs.jsx'
-import ItensEditor from './ItensEditor.jsx'
+import EditorDeItens from './EditorDeItens.jsx'
 import { ITEM_VAZIO } from './item.js'
 import { CAMPOS_VAZIOS, camposDoRascunho } from './dadosOs.js'
 import { salvarRascunho, lerRascunho, limparRascunho } from './rascunho.js'
@@ -214,7 +214,7 @@ export default function NovaOS() {
         <h2 className="mt-4 mb-2 text-[10px] font-bold tracking-[0.14em] text-mute uppercase">
           Itens
         </h2>
-        <ItensEditor itens={itens} aoMudar={setItens} />
+        <EditorDeItens itens={itens} aoMudar={setItens} />
 
         <label
           htmlFor="obs-os"
