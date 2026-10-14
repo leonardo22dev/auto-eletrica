@@ -5,10 +5,11 @@ import { separarSelect, montarSelect } from './consulta.js'
 // propósito: se alguém embutir um relacionamento novo, a demonstração
 // quebra alto em vez de devolver dado faltando em silêncio.
 const RELACOES = {
-  'clientes.veiculos': { chaveLocal: 'id', tabela: 'veiculos', chaveRemota: 'cliente_id', lista: true },
-  'veiculos.clientes': { chaveLocal: 'cliente_id', tabela: 'clientes', chaveRemota: 'id', lista: false },
-  'ordens_servico.os_itens': { chaveLocal: 'id', tabela: 'os_itens', chaveRemota: 'os_id', lista: true },
+  'ordens_servico.os_itens': {
+    chaveLocal: 'id', tabela: 'os_itens', chaveRemota: 'os_id', lista: true,
+  },
 }
+
 
 const USUARIO_DEMO = {
   id: '99999999-9999-4999-8999-999999999999',

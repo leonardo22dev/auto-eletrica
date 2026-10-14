@@ -10,13 +10,14 @@ Feito por **LB Softwares**.
 ## O que faz
 
 - Login por e-mail e senha, sem autocadastro.
-- Cadastro de clientes e veículos, com a placa como atalho principal.
+- OS autossuficiente: nome, telefone, veículo, placa e data digitados nela.
+- A placa consulta as OS anteriores e oferece os dados da última vez, sem cadastro.
 - OS com itens (quantidade, discriminação, unitário, total) e total calculado
   pelo banco.
 - Ciclo **Orçamento → Aprovada → Finalizada**, mais Cancelada.
 - PDF replicando o talão, com as 18 linhas e a tarja da garantia.
 - Envio por WhatsApp: anexo direto no celular, link no desktop.
-- Ficha do veículo com todas as OS daquele carro e a situação da garantia.
+- Histórico em tela própria, com busca por nome, placa ou número.
 - Instalável como app no celular.
 
 ## Rodando localmente
@@ -71,6 +72,7 @@ Supabase.
 | Arquivo | O que é |
 |---|---|
 | `docs/superpowers/specs/2026-10-13-mizuho-os-design.md` | Spec: decisões e por quê |
+| `docs/superpowers/specs/2026-10-14-os-sem-cadastro-design.md` | Emenda: OS sem cadastro |
 | `docs/superpowers/plans/2026-10-13-mizuho-os.md` | Plano de implementação |
 | `docs/maquete.html` | Maquete visual aprovada — abra no navegador |
 | `docs/logo_clean.png` | Logo extraído da foto do talão (provisório) |
