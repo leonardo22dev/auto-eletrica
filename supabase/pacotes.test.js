@@ -36,9 +36,11 @@ describe('pacotes para colar no SQL Editor', () => {
     const pacote = ler('atualizacao-usuarios.sql')
     expect(pacote).toMatch(/^begin;$/m)
     expect(pacote).toMatch(/^commit;$/m)
-    for (const nome of arquivosDeMigration().filter((n) => n.slice(0, 4) >= '0008')) {
+    // Só 0008 a 0010: a 0011 tem pacote próprio (quem já aplicou esta).
+    for (const nome of arquivosDeMigration().filter((n) => n.slice(0, 4) >= '0008' && n.slice(0, 4) <= '0010')) {
       expect(pacote).toContain(ler('migrations', nome).trim())
     }
+    expect(pacote).not.toContain('-- ====== 0011_')
 
     const db = await criarBanco({ ate: '0007' })
     await db.query(
@@ -46,6 +48,22 @@ describe('pacotes para colar no SQL Editor', () => {
     await db.exec(pacote)
     const { rows } = await db.query('select usuario, papel, ativo from perfis')
     expect(rows).toEqual([{ usuario: 'mizuho', papel: 'admin', ativo: true }])
+    await db.close()
+  })
+
+  it('atualizacao-0011.sql aplica sobre quem já está na 0010', async () => {
+    const pacote = ler('atualizacao-0011.sql')
+    expect(pacote).toMatch(/^begin;$/m)
+    expect(pacote).toMatch(/^commit;$/m)
+    expect(pacote).toContain(ler('migrations', '0011_fechar_listagem_de_pdfs.sql').trim())
+
+    const db = await criarBanco({ ate: '0010' })
+    await db.exec(pacote)
+    const { rows } = await db.query(
+      "select policyname from pg_policies where schemaname = 'storage' and tablename = 'objects' order by 1")
+    const nomes = rows.map((r) => r.policyname)
+    expect(nomes).toContain('pdf_le')
+    expect(nomes).not.toContain('pdf_le_publico')
     await db.close()
   })
 

@@ -64,6 +64,11 @@ criado vira administrador. Usuário criado direto no painel do Supabase depois
 disso **não entra**: falta o perfil. Crie pela aba Usuários. Para apagar alguém
 de vez, use *Authentication → Users* no painel; as OS dela permanecem.
 
+`supabase/atualizacao-0011.sql` fecha a **listagem pública** do bucket dos PDFs
+(antes, qualquer visitante com a chave pública listava os arquivos). O link que
+vai por WhatsApp continua abrindo, porque o bucket é público; só quem está logado
+e ativo lista. Cole e rode uma vez, depois da atualização de usuários.
+
 Depois, no painel do Supabase:
 
 1. *Authentication → Users*: crie o usuário da oficina com **Auto Confirm User**.
