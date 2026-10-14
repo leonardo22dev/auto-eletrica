@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../data/supabase.js'
 import { AuthCtx } from './contexto.js'
+import { usuarioParaEmail } from './usuario.js'
 
 export function AuthProvider({ children }) {
   const [sessao, setSessao] = useState(null)
@@ -17,12 +18,14 @@ export function AuthProvider({ children }) {
     return () => sub.subscription.unsubscribe()
   }, [])
 
-  async function entrar(email, senha) {
+  async function entrar(usuario, senha) {
+    const email = usuarioParaEmail(usuario)
+    if (!email) throw new Error('Informe o usuário, sem espaço nem acento.')
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email,
       password: senha,
     })
-    if (error) throw new Error('E-mail ou senha incorretos.')
+    if (error) throw new Error('Usuário ou senha incorretos.')
   }
 
   async function sair() {

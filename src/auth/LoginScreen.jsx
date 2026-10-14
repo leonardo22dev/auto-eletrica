@@ -4,7 +4,7 @@ import { modoDemo } from '../data/supabase.js'
 
 export default function LoginScreen() {
   const { entrar } = useAuth()
-  const [email, setEmail] = useState('')
+  const [usuario, setUsuario] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -14,7 +14,7 @@ export default function LoginScreen() {
     setErro('')
     setEnviando(true)
     try {
-      await entrar(email, senha)
+      await entrar(usuario, senha)
     } catch (err) {
       setErro(err.message)
     } finally {
@@ -47,18 +47,20 @@ export default function LoginScreen() {
 
         <div>
           <label
-            htmlFor="email"
+            htmlFor="usuario"
             className="mb-1.5 block text-[10px] font-bold tracking-[0.12em] text-[#C6A9A3] uppercase"
           >
-            E-mail
+            Usuário
           </label>
           <input
-            id="email"
-            type="email"
-            inputMode="email"
+            id="usuario"
+            type="text"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={usuario}
+            onChange={(e) => setUsuario(e.target.value)}
             required
             className="h-12 w-full rounded-xl border-[1.5px] border-white/20 bg-white/8 px-3.5 text-base font-semibold text-white placeholder:text-[#9E918D] focus:border-white/50 focus:outline-none"
           />
@@ -85,7 +87,7 @@ export default function LoginScreen() {
         {modoDemo && (
           <div className="rounded-xl border border-[#F2D479] bg-[#FEF3C7] px-3 py-2.5 text-[12px] leading-snug text-[#7A4A06]">
             <strong className="font-extrabold">Modo demonstração.</strong> Entre com
-            qualquer e-mail e senha. Os dados são de exemplo, vivem só nesta aba e
+            qualquer usuário e senha. Os dados são de exemplo, vivem só nesta aba e
             somem ao recarregar a página.
           </div>
         )}
