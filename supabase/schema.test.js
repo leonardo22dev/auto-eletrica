@@ -374,3 +374,347 @@ describe('OS autossuficiente', () => {
       .toBeGreaterThanOrEqual(new Date(antes[0].atualizado_em).getTime())
   })
 })
+
+// ---------------------------------------------------------------------------
+// Assinatura do cliente
+// ---------------------------------------------------------------------------
+const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+
+// As colunas do aceite só mudam pelas funções. Para forjar um estado de teste
+// (por exemplo, link vencido) o teste faz o que a função faz: sinaliza a
+// transação antes de escrever.
+async function comoFuncao(db, sql) {
+  await db.exec(`begin; select set_config('mizuho.via_funcao','on',true); ${sql}; commit;`)
+}
+
+async function osComItem(db, centavos = 48000) {
+  const os = await criarOS(db)
+  await adicionarItem(db, os.id, 1, 'Alternador', centavos)
+  return os
+}
+
+async function gerarLink(db, osId, renovar = false) {
+  const { rows: [r] } = await db.query(
+    'select gerar_link_assinatura($1, $2) as r', [osId, renovar])
+  return r.r
+}
+
+async function obter(db, codigo) {
+  const { rows: [r] } = await db.query(
+    'select obter_os_para_assinatura($1) as r', [codigo])
+  return r.r
+}
+
+async function aceitar(db, codigo, total = 48000, desenho = PNG) {
+  const { rows: [r] } = await db.query(
+    'select registrar_aceite($1, $2, $3) as r', [codigo, desenho, total])
+  return r.r
+}
+
+describe('gerar_link_assinatura', () => {
+  it('cria um código de 64 caracteres hexadecimais e validade de 30 dias', async () => {
+    const os = await osComItem(db)
+    const l = await gerarLink(db, os.id)
+    expect(l.codigo).toMatch(/^[0-9a-f]{64}$/)
+    const dias = (new Date(l.expira_em) - Date.now()) / 86400000
+    expect(dias).toBeGreaterThan(29.9)
+    expect(dias).toBeLessThan(30.1)
+  })
+
+  it('devolve o mesmo código enquanto ele valer', async () => {
+    const os = await osComItem(db)
+    const a = await gerarLink(db, os.id)
+    const b = await gerarLink(db, os.id)
+    expect(b.codigo).toBe(a.codigo)
+  })
+
+  it('renovar troca o código e invalida o anterior', async () => {
+    const os = await osComItem(db)
+    const a = await gerarLink(db, os.id)
+    const b = await gerarLink(db, os.id, true)
+    expect(b.codigo).not.toBe(a.codigo)
+    expect((await obter(db, a.codigo)).situacao).toBe('invalido')
+    expect((await obter(db, b.codigo)).situacao).toBe('valido')
+  })
+
+  it('gera outro código quando o anterior venceu', async () => {
+    const os = await osComItem(db)
+    const a = await gerarLink(db, os.id)
+    await comoFuncao(db, `update ordens_servico set assinatura_expira_em = now() - interval '1 day' where id = '${os.id}'`)
+    const b = await gerarLink(db, os.id)
+    expect(b.codigo).not.toBe(a.codigo)
+  })
+
+  it('recusa OS finalizada, cancelada e já assinada', async () => {
+    for (const status of ['finalizada', 'cancelada']) {
+      const os = await osComItem(db)
+      await db.query('update ordens_servico set status = $1 where id = $2', [status, os.id])
+      await expect(gerarLink(db, os.id)).rejects.toThrow(/status/)
+    }
+    const os = await osComItem(db)
+    const l = await gerarLink(db, os.id)
+    await aceitar(db, l.codigo)
+    await expect(gerarLink(db, os.id)).rejects.toThrow(/ja_assinada/)
+  })
+})
+
+describe('obter_os_para_assinatura', () => {
+  it('entrega só a OS do código, sem telefone do cliente', async () => {
+    const os = await osComItem(db)
+    await osComItem(db, 9900)
+    const { codigo } = await gerarLink(db, os.id)
+    const r = await obter(db, codigo)
+    expect(r.situacao).toBe('valido')
+    expect(r.os.total_centavos).toBe(48000)
+    expect(r.os.itens).toHaveLength(1)
+    expect(r.os.cliente_nome).toBe('Cliente Teste')
+    expect(JSON.stringify(r)).not.toContain('98888-7777')
+    expect(r.oficina.razao_social).toContain('MIZUHO')
+  })
+
+  // Quem tenta códigos não pode aprender quais existem.
+  it('responde igual para código inexistente e para link vencido', async () => {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    await comoFuncao(db, `update ordens_servico set assinatura_expira_em = now() - interval '1 day' where id = '${os.id}'`)
+    const vencido = await obter(db, codigo)
+    const inexistente = await obter(db, 'a'.repeat(64))
+    expect(vencido).toEqual(inexistente)
+    expect(vencido).toEqual({ situacao: 'invalido' })
+  })
+
+  it('aguenta entrada nula, vazia e curta', async () => {
+    for (const lixo of [null, '', 'abc']) {
+      const { rows: [r] } = await db.query('select obter_os_para_assinatura($1) as r', [lixo])
+      expect(r.r).toEqual({ situacao: 'invalido' })
+    }
+  })
+
+  it('mostra cancelada e finalizada sem permitir aceite', async () => {
+    for (const status of ['cancelada', 'finalizada']) {
+      const os = await osComItem(db)
+      const { codigo } = await gerarLink(db, os.id)
+      await db.query('update ordens_servico set status = $1 where id = $2', [status, os.id])
+      expect((await obter(db, codigo)).situacao).toBe(status)
+    }
+  })
+
+  it('informa assinado, com a data do aceite', async () => {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    await aceitar(db, codigo)
+    const r = await obter(db, codigo)
+    expect(r.situacao).toBe('assinado')
+    expect(r.aceite_em).toBeTruthy()
+  })
+})
+
+describe('registrar_aceite', () => {
+  it('grava o aceite e leva Orçamento para Aprovada', async () => {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    const r = await aceitar(db, codigo)
+    expect(r.ok).toBe(true)
+
+    const { rows: [o] } = await db.query(
+      'select * from ordens_servico where id = $1', [os.id])
+    expect(o.status).toBe('aprovada')
+    expect(o.aceite_em).toBeTruthy()
+    expect(o.data_aprovacao).toBeTruthy()
+    expect(o.aceite_assinatura).toBe(PNG)
+    expect(o.aceite_total_centavos).toBe(48000)
+    expect(o.aceite_nome).toBe('Cliente Teste')
+  })
+
+  it('mantém Aprovada como Aprovada', async () => {
+    const os = await osComItem(db)
+    await db.query("update ordens_servico set status = 'aprovada' where id = $1", [os.id])
+    const { codigo } = await gerarLink(db, os.id)
+    await aceitar(db, codigo)
+    const { rows: [o] } = await db.query('select status from ordens_servico where id = $1', [os.id])
+    expect(o.status).toBe('aprovada')
+  })
+
+  // Review Focus 1: o segundo toque.
+  it('recusa a segunda assinatura', async () => {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    await aceitar(db, codigo)
+    await expect(aceitar(db, codigo)).rejects.toThrow(/ja_assinada/)
+  })
+
+  // Review Focus 4: o dono mexeu no valor enquanto o cliente olhava.
+  it('recusa total divergente e não grava nada', async () => {
+    const os = await osComItem(db, 48000)
+    const { codigo } = await gerarLink(db, os.id)
+    await expect(aceitar(db, codigo, 30000)).rejects.toThrow(/total_divergente/)
+    const { rows: [o] } = await db.query(
+      'select aceite_em, status from ordens_servico where id = $1', [os.id])
+    expect(o.aceite_em).toBe(null)
+    expect(o.status).toBe('orcamento')
+  })
+
+  it('recusa código errado, vencido e OS cancelada', async () => {
+    await expect(aceitar(db, 'b'.repeat(64))).rejects.toThrow(/link_invalido/)
+
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    await comoFuncao(db, `update ordens_servico set assinatura_expira_em = now() - interval '1 day' where id = '${os.id}'`)
+    await expect(aceitar(db, codigo)).rejects.toThrow(/link_invalido/)
+
+    const os2 = await osComItem(db)
+    const l2 = await gerarLink(db, os2.id)
+    await db.query("update ordens_servico set status = 'cancelada' where id = $1", [os2.id])
+    await expect(aceitar(db, l2.codigo)).rejects.toThrow(/status_invalido/)
+  })
+
+  it('recusa desenho fora do formato ou grande demais', async () => {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    for (const ruim of [null, '', 'oi', 'data:image/jpeg;base64,AAAA',
+      'data:image/png;base64,<script>', `data:image/png;base64,${'A'.repeat(200001)}`]) {
+      await expect(aceitar(db, codigo, 48000, ruim)).rejects.toThrow(/assinatura_invalida/)
+    }
+  })
+})
+
+describe('trava depois do aceite', () => {
+  async function osAssinada() {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    await aceitar(db, codigo)
+    return os
+  }
+
+  it('o banco recusa inserir, alterar e apagar itens', async () => {
+    const os = await osAssinada()
+    await expect(adicionarItem(db, os.id, 2, 'Extra', 1000)).rejects.toThrow(/assinada/)
+    await expect(
+      db.query('update os_itens set descricao = $1 where os_id = $2', ['Outro', os.id]),
+    ).rejects.toThrow(/assinada/)
+    await expect(
+      db.query('delete from os_itens where os_id = $1', [os.id]),
+    ).rejects.toThrow(/assinada/)
+  })
+
+  it('substituir_itens também é recusada e não perde nada', async () => {
+    const os = await osAssinada()
+    await expect(
+      db.query("select substituir_itens($1, '[]'::jsonb)", [os.id]),
+    ).rejects.toThrow(/assinada/)
+    expect(await totalDaOS(db, os.id)).toBe(48000)
+    const { rows } = await db.query('select count(*)::int as n from os_itens where os_id = $1', [os.id])
+    expect(rows[0].n).toBe(1)
+  })
+
+  it('o total não muda por escrita direta', async () => {
+    const os = await osAssinada()
+    await expect(
+      db.query('update ordens_servico set total_centavos = 1 where id = $1', [os.id]),
+    ).rejects.toThrow(/assinada/)
+  })
+
+  // Review Focus 5.
+  it('o aceite não se forja por escrita direta', async () => {
+    const os = await osComItem(db)
+    await expect(
+      db.query('update ordens_servico set aceite_em = now() where id = $1', [os.id]),
+    ).rejects.toThrow(/funcoes/)
+    await expect(
+      db.query("update ordens_servico set assinatura_codigo = 'previsivel' where id = $1", [os.id]),
+    ).rejects.toThrow(/funcoes/)
+    await expect(
+      db.query(`insert into ordens_servico (cliente_nome, veiculo_descricao, veiculo_placa, aceite_em)
+                values ('A', 'B', 'ABC1D23', now())`),
+    ).rejects.toThrow(/funcoes/)
+  })
+
+  it('o aceite não se desfaz', async () => {
+    const os = await osAssinada()
+    await expect(
+      db.query('update ordens_servico set aceite_em = null where id = $1', [os.id]),
+    ).rejects.toThrow()
+    await expect(
+      comoFuncao(db, `update ordens_servico set aceite_assinatura = 'x' where id = '${os.id}'`),
+    ).rejects.toThrow()
+  })
+
+  it('nome, telefone e status continuam editáveis, e o aceite guarda o nome original', async () => {
+    const os = await osAssinada()
+    await db.query(
+      "update ordens_servico set cliente_nome = 'Nome Corrigido', cliente_telefone = '11999990000' where id = $1",
+      [os.id])
+    await db.query("update ordens_servico set status = 'finalizada' where id = $1", [os.id])
+    const { rows: [o] } = await db.query(
+      'select cliente_nome, aceite_nome, status from ordens_servico where id = $1', [os.id])
+    expect(o.cliente_nome).toBe('Nome Corrigido')
+    expect(o.aceite_nome).toBe('Cliente Teste')
+    expect(o.status).toBe('finalizada')
+  })
+
+  it('cancelar OS assinada é permitido', async () => {
+    const os = await osAssinada()
+    await db.query('select cancelar_os($1)', [os.id])
+    const { rows: [o] } = await db.query('select status from ordens_servico where id = $1', [os.id])
+    expect(o.status).toBe('cancelada')
+  })
+
+  // A trava de itens não pode impedir o administrador de limpar uma OS: na
+  // cascata, a OS já não é visível para o gatilho dos itens.
+  it('apagar a OS inteira, pelo painel, leva os itens junto mesmo assinada', async () => {
+    const os = await osAssinada()
+    await db.query('delete from ordens_servico where id = $1', [os.id])
+    const { rows } = await db.query('select count(*)::int as n from os_itens')
+    expect(rows[0].n).toBe(0)
+  })
+})
+
+describe('permissões do visitante', () => {
+  async function como(papel, fn) {
+    await db.exec(`set role ${papel}`)
+    try { return await fn() } finally { await db.exec('reset role') }
+  }
+
+  it('visitante executa só as duas funções do link', async () => {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    const r = await como('anon', () => obter(db, codigo))
+    expect(r.situacao).toBe('valido')
+    const ok = await como('anon', () => aceitar(db, codigo))
+    expect(ok.ok).toBe(true)
+  })
+
+  // Já existia aberto a visitante antes desta mudança: com a chave anon, que é
+  // pública, alguém poderia reiniciar a numeração das OS.
+  it('visitante NÃO executa as funções internas', async () => {
+    const os = await osComItem(db)
+    const chamadas = [
+      ['select definir_proximo_numero(5)', []],
+      ['select cancelar_os($1)', [os.id]],
+      ["select substituir_itens($1, '[]'::jsonb)", [os.id]],
+      ['select gerar_link_assinatura($1, false)', [os.id]],
+    ]
+    for (const [sql, args] of chamadas) {
+      await expect(como('anon', () => db.query(sql, args))).rejects.toThrow(/permission denied/)
+    }
+  })
+
+  it('usuário logado executa as internas', async () => {
+    const os = await osComItem(db)
+    await como('authenticated', async () => {
+      const { rows: [r] } = await db.query('select gerar_link_assinatura($1, false) as r', [os.id])
+      expect(r.r.codigo).toHaveLength(64)
+    })
+  })
+
+  it('visitante não lê a tabela', async () => {
+    await osComItem(db)
+    const lidas = await como('anon', async () => {
+      try {
+        const { rows } = await db.query('select * from ordens_servico')
+        return rows.length
+      } catch { return 0 }
+    })
+    expect(lidas).toBe(0)
+  })
+})
