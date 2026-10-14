@@ -25,9 +25,14 @@ export async function obterOsParaAssinatura(codigo) {
   return data
 }
 
-export async function registrarAceite({ codigo, assinatura, totalVisto }) {
+// `versao` é o que a página recebeu ao abrir: o aceite só vale para aquilo que
+// o cliente viu, não para o que a OS virou depois.
+export async function registrarAceite({ codigo, assinatura, totalVisto, versao }) {
   const { data, error } = await supabase.rpc('registrar_aceite', {
-    p_codigo: codigo, p_assinatura: assinatura, p_total_visto: totalVisto,
+    p_codigo: codigo,
+    p_assinatura: assinatura,
+    p_total_visto: totalVisto,
+    p_versao: versao,
   })
   if (error) throw erroDoBanco(error, 'Não foi possível registrar a assinatura.')
   return data

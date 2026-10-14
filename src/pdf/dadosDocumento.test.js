@@ -215,6 +215,20 @@ describe('assinatura do cliente no documento', () => {
       'Assinado digitalmente pelo cliente em 14/10/2026 às 15:32')
   })
 
+  // O nome do cliente na OS segue editável depois do aceite. Quem assinou foi
+  // o nome que constava na hora do aceite, e é ele que a legenda deve mostrar.
+  it('a legenda traz o nome de quem assinou, não o nome atual da OS', () => {
+    const d = montarDadosDocumento({
+      ...OS,
+      cliente_nome: 'Nome Corrigido Depois',
+      aceite_nome: 'João Silva',
+      aceite_em: '2026-10-14T15:32:00-03:00',
+      aceite_assinatura: PNG,
+    }, CONFIG)
+    expect(d.assinatura.textoData).toBe(
+      'Assinado digitalmente por João Silva em 14/10/2026 às 15:32')
+  })
+
   it('aceite sem desenho não imprime assinatura', () => {
     const d = montarDadosDocumento({
       ...OS, aceite_em: '2026-10-14T15:32:00-03:00', aceite_assinatura: null,

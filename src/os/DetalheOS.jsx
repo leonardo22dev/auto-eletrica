@@ -18,8 +18,14 @@ import Botao from '../ui/Botao.jsx'
 import Chip from '../ui/Chip.jsx'
 import { gerarLinkAssinatura } from '../data/assinatura.js'
 import { situacaoDoLink } from '../assinatura/estado.js'
-import { urlDeAssinatura } from '../assinatura/codigo.js'
+import { urlDeAssinatura, baseDaUrl } from '../assinatura/codigo.js'
 import BlocoAssinatura from '../assinatura/BlocoAssinatura.jsx'
+
+// Endereço que o CLIENTE vai abrir. Configurável porque o dono pode estar num
+// preview da Vercel ou numa rede local, cujo endereço não abre para ele.
+function enderecoPublico() {
+  return baseDaUrl(import.meta.env.VITE_URL_PUBLICA, window.location.origin)
+}
 
 const ROTULO_ACAO = {
   [STATUS.APROVADA]: 'Aprovar',
@@ -165,7 +171,7 @@ export default function DetalheOS() {
     if (situacao === 'assinada' || situacao === 'indisponivel') return undefined
     const { codigo } = await gerarLinkAssinatura(os.id)
     await buscar()
-    return urlDeAssinatura(window.location.origin, codigo)
+    return urlDeAssinatura(enderecoPublico(), codigo)
   }
 
   const whatsapp = () => executar(async () => {
@@ -183,7 +189,7 @@ export default function DetalheOS() {
 
   const copiarLink = () => executar(async () => {
     const { codigo } = await gerarLinkAssinatura(os.id)
-    await navigator.clipboard.writeText(urlDeAssinatura(window.location.origin, codigo))
+    await navigator.clipboard.writeText(urlDeAssinatura(enderecoPublico(), codigo))
     setAviso('Link copiado.')
   })
 

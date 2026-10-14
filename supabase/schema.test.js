@@ -33,7 +33,21 @@ async function criarBanco() {
   for (const nome of arquivos) {
     await db.exec(readFileSync(join(MIGRATIONS, nome), 'utf8'))
   }
+  // O Supabase concede as tabelas aos papéis anon e authenticated por padrão, e
+  // é o RLS que protege. Sem imitar isso, "visitante não lê" passaria por falta
+  // de permissão de tabela e não provaria nada sobre o RLS.
+  await db.exec(`
+    grant usage on schema public to anon, authenticated;
+    grant all on all tables in schema public to anon, authenticated;
+    grant all on all sequences in schema public to anon, authenticated;
+  `)
   return db
+}
+
+// Executa como um papel do Supabase (anon, authenticated) e volta a ser dono.
+async function como(db, papel, fn) {
+  await db.exec(`set role ${papel}`)
+  try { return await fn() } finally { await db.exec('reset role') }
 }
 
 async function criarOS(db, extra = {}) {
@@ -380,11 +394,29 @@ describe('OS autossuficiente', () => {
 // ---------------------------------------------------------------------------
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 
-// As colunas do aceite só mudam pelas funções. Para forjar um estado de teste
-// (por exemplo, link vencido) o teste faz o que a função faz: sinaliza a
-// transação antes de escrever.
-async function comoFuncao(db, sql) {
-  await db.exec(`begin; select set_config('mizuho.via_funcao','on',true); ${sql}; commit;`)
+// As colunas do aceite só mudam pelas funções, que rodam como dono. O teste
+// também roda como dono (o administrador do painel), então pode montar estados
+// que um usuário da API não conseguiria — como um link já vencido.
+async function comoAdmin(db, sql) {
+  await db.exec(sql)
+}
+
+// A trava vale para quem vem pela API. As tentativas de forja rodam como
+// `authenticated`, que é o papel que o PostgREST e o GraphQL usam.
+const comoLogado = (db, fn) => como(db, 'authenticated', fn)
+
+// Bytes de um PNG com o cabeçalho IHDR pedido. O conteúdo depois dele não
+// importa: o banco só confere a assinatura e as dimensões.
+function pngComDimensoes(largura, altura) {
+  const b = Buffer.alloc(33)
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(b, 0)
+  b.writeUInt32BE(13, 8)
+  b.write('IHDR', 12)
+  b.writeUInt32BE(largura, 16)
+  b.writeUInt32BE(altura, 20)
+  b[24] = 8
+  b[25] = 6
+  return `data:image/png;base64,${b.toString('base64')}`
 }
 
 async function osComItem(db, centavos = 48000) {
@@ -405,9 +437,12 @@ async function obter(db, codigo) {
   return r.r
 }
 
-async function aceitar(db, codigo, total = 48000, desenho = PNG) {
+// A página manda a versão que o cliente viu. Sem `versao`, o teste a pega do
+// que o link mostra agora, como a página faz ao abrir.
+async function aceitar(db, codigo, total = 48000, desenho = PNG, versao) {
+  const v = versao === undefined ? (await obter(db, codigo)).versao : versao
   const { rows: [r] } = await db.query(
-    'select registrar_aceite($1, $2, $3) as r', [codigo, desenho, total])
+    'select registrar_aceite($1, $2, $3, $4) as r', [codigo, desenho, total, v ?? null])
   return r.r
 }
 
@@ -440,7 +475,7 @@ describe('gerar_link_assinatura', () => {
   it('gera outro código quando o anterior venceu', async () => {
     const os = await osComItem(db)
     const a = await gerarLink(db, os.id)
-    await comoFuncao(db, `update ordens_servico set assinatura_expira_em = now() - interval '1 day' where id = '${os.id}'`)
+    await comoAdmin(db, `update ordens_servico set assinatura_expira_em = now() - interval '1 day' where id = '${os.id}'`)
     const b = await gerarLink(db, os.id)
     expect(b.codigo).not.toBe(a.codigo)
   })
@@ -476,7 +511,7 @@ describe('obter_os_para_assinatura', () => {
   it('responde igual para código inexistente e para link vencido', async () => {
     const os = await osComItem(db)
     const { codigo } = await gerarLink(db, os.id)
-    await comoFuncao(db, `update ordens_servico set assinatura_expira_em = now() - interval '1 day' where id = '${os.id}'`)
+    await comoAdmin(db, `update ordens_servico set assinatura_expira_em = now() - interval '1 day' where id = '${os.id}'`)
     const vencido = await obter(db, codigo)
     const inexistente = await obter(db, 'a'.repeat(64))
     expect(vencido).toEqual(inexistente)
@@ -559,7 +594,7 @@ describe('registrar_aceite', () => {
 
     const os = await osComItem(db)
     const { codigo } = await gerarLink(db, os.id)
-    await comoFuncao(db, `update ordens_servico set assinatura_expira_em = now() - interval '1 day' where id = '${os.id}'`)
+    await comoAdmin(db, `update ordens_servico set assinatura_expira_em = now() - interval '1 day' where id = '${os.id}'`)
     await expect(aceitar(db, codigo)).rejects.toThrow(/link_invalido/)
 
     const os2 = await osComItem(db)
@@ -614,19 +649,64 @@ describe('trava depois do aceite', () => {
     ).rejects.toThrow(/assinada/)
   })
 
-  // Review Focus 5.
+  // Review Focus 5. Como `authenticated`, que é o papel da API.
   it('o aceite não se forja por escrita direta', async () => {
     const os = await osComItem(db)
-    await expect(
+    await expect(comoLogado(db, () =>
       db.query('update ordens_servico set aceite_em = now() where id = $1', [os.id]),
-    ).rejects.toThrow(/funcoes/)
-    await expect(
+    )).rejects.toThrow(/funcoes/)
+    await expect(comoLogado(db, () =>
       db.query("update ordens_servico set assinatura_codigo = 'previsivel' where id = $1", [os.id]),
-    ).rejects.toThrow(/funcoes/)
-    await expect(
+    )).rejects.toThrow(/funcoes/)
+    await expect(comoLogado(db, () =>
       db.query(`insert into ordens_servico (cliente_nome, veiculo_descricao, veiculo_placa, aceite_em)
                 values ('A', 'B', 'ABC1D23', now())`),
-    ).rejects.toThrow(/funcoes/)
+    )).rejects.toThrow(/funcoes/)
+  })
+
+  // O GraphQL do Supabase roda as mutations de uma requisição numa transação
+  // só. Um sinalizador de transação, ligado por uma função, ficava ligado para
+  // o update direto que vinha logo depois: gerar o link e forjar o aceite.
+  it('gerar o link e forjar o aceite na MESMA transação é recusado', async () => {
+    const os = await osComItem(db)
+    await comoLogado(db, async () => {
+      await db.exec('begin')
+      try {
+        await db.query('select gerar_link_assinatura($1, false)', [os.id])
+        await expect(db.query(
+          `update ordens_servico
+              set aceite_em = '2020-01-01',
+                  aceite_assinatura = 'data:image/png;base64,AA==',
+                  aceite_total_centavos = 1
+            where id = $1`, [os.id]),
+        ).rejects.toThrow(/funcoes/)
+      } finally {
+        await db.exec('rollback')
+      }
+    })
+    const { rows: [o] } = await db.query(
+      'select aceite_em from ordens_servico where id = $1', [os.id])
+    expect(o.aceite_em).toBe(null)
+  })
+
+  it('um item não muda de OS para escapar da trava', async () => {
+    const assinada = await osAssinada()
+    const livre = await osComItem(db, 1000)
+
+    // Sair da OS assinada para uma livre.
+    await expect(comoLogado(db, () => db.query(
+      'update os_itens set os_id = $1, posicao = 9 where os_id = $2', [livre.id, assinada.id]),
+    )).rejects.toThrow()
+
+    // Entrar numa OS assinada vindo de uma livre.
+    await expect(comoLogado(db, () => db.query(
+      'update os_itens set os_id = $1, posicao = 9 where os_id = $2', [assinada.id, livre.id]),
+    )).rejects.toThrow()
+
+    expect(await totalDaOS(db, assinada.id)).toBe(48000)
+    const { rows } = await db.query(
+      'select count(*)::int as n from os_itens where os_id = $1', [assinada.id])
+    expect(rows[0].n).toBe(1)
   })
 
   it('o aceite não se desfaz', async () => {
@@ -635,7 +715,7 @@ describe('trava depois do aceite', () => {
       db.query('update ordens_servico set aceite_em = null where id = $1', [os.id]),
     ).rejects.toThrow()
     await expect(
-      comoFuncao(db, `update ordens_servico set aceite_assinatura = 'x' where id = '${os.id}'`),
+      comoAdmin(db, `update ordens_servico set aceite_assinatura = 'x' where id = '${os.id}'`),
     ).rejects.toThrow()
   })
 
@@ -670,17 +750,12 @@ describe('trava depois do aceite', () => {
 })
 
 describe('permissões do visitante', () => {
-  async function como(papel, fn) {
-    await db.exec(`set role ${papel}`)
-    try { return await fn() } finally { await db.exec('reset role') }
-  }
-
   it('visitante executa só as duas funções do link', async () => {
     const os = await osComItem(db)
     const { codigo } = await gerarLink(db, os.id)
-    const r = await como('anon', () => obter(db, codigo))
+    const r = await como(db, 'anon', () => obter(db, codigo))
     expect(r.situacao).toBe('valido')
-    const ok = await como('anon', () => aceitar(db, codigo))
+    const ok = await como(db, 'anon', () => aceitar(db, codigo))
     expect(ok.ok).toBe(true)
   })
 
@@ -695,26 +770,127 @@ describe('permissões do visitante', () => {
       ['select gerar_link_assinatura($1, false)', [os.id]],
     ]
     for (const [sql, args] of chamadas) {
-      await expect(como('anon', () => db.query(sql, args))).rejects.toThrow(/permission denied/)
+      await expect(como(db, 'anon', () => db.query(sql, args))).rejects.toThrow(/permission denied/)
     }
   })
 
   it('usuário logado executa as internas', async () => {
     const os = await osComItem(db)
-    await como('authenticated', async () => {
+    await como(db, 'authenticated', async () => {
       const { rows: [r] } = await db.query('select gerar_link_assinatura($1, false) as r', [os.id])
       expect(r.r.codigo).toHaveLength(64)
     })
   })
 
-  it('visitante não lê a tabela', async () => {
+  // Com os grants do criarBanco, o visitante TEM permissão de tabela, como no
+  // Supabase. O que o segura é o RLS — e é isso que este teste exercita, sem
+  // um try/catch que o fizesse passar por qualquer erro.
+  it('visitante não lê a tabela: o RLS devolve zero linhas', async () => {
     await osComItem(db)
-    const lidas = await como('anon', async () => {
-      try {
-        const { rows } = await db.query('select * from ordens_servico')
-        return rows.length
-      } catch { return 0 }
-    })
-    expect(lidas).toBe(0)
+    const { rows } = await como(db, 'anon', () => db.query('select * from ordens_servico'))
+    expect(rows).toHaveLength(0)
+  })
+
+  it('visitante não escreve na tabela', async () => {
+    const os = await osComItem(db)
+    const r = await como(db, 'anon', () => db.query(
+      "update ordens_servico set cliente_nome = 'Invasor' where id = $1 returning id", [os.id]))
+    expect(r.rows).toHaveLength(0)
+    const { rows: [o] } = await db.query(
+      'select cliente_nome from ordens_servico where id = $1', [os.id])
+    expect(o.cliente_nome).toBe('Cliente Teste')
+  })
+})
+
+// A versão amarra o aceite ao que o cliente VIU, não só ao total: trocar a
+// descrição mantendo o valor não muda o total, e a conferência por total sozinha
+// deixava o cliente assinar itens que nunca tinha visto.
+describe('versão do que o cliente viu', () => {
+  it('obter devolve uma versão estável', async () => {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    const a = await obter(db, codigo)
+    const b = await obter(db, codigo)
+    expect(a.versao).toMatch(/^[0-9a-f]{32}$/)
+    expect(b.versao).toBe(a.versao)
+  })
+
+  it('trocar a descrição com o MESMO total muda a versão e recusa o aceite', async () => {
+    const os = await osComItem(db, 30000)
+    const { codigo } = await gerarLink(db, os.id)
+    const visto = await obter(db, codigo)
+
+    await db.query(
+      "update os_itens set descricao = 'Alternador recondicionado' where os_id = $1", [os.id])
+    expect(await totalDaOS(db, os.id)).toBe(30000)
+
+    await expect(aceitar(db, codigo, 30000, PNG, visto.versao))
+      .rejects.toThrow(/total_divergente/)
+    const { rows: [o] } = await db.query(
+      'select aceite_em from ordens_servico where id = $1', [os.id])
+    expect(o.aceite_em).toBe(null)
+  })
+
+  it('mudar o nome do cliente também muda a versão', async () => {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    const visto = await obter(db, codigo)
+    await db.query("update ordens_servico set cliente_nome = 'Outro Nome' where id = $1", [os.id])
+    await expect(aceitar(db, codigo, 48000, PNG, visto.versao))
+      .rejects.toThrow(/total_divergente/)
+  })
+
+  it('a versão que o cliente viu, sem mudança, é aceita', async () => {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    const visto = await obter(db, codigo)
+    const r = await aceitar(db, codigo, 48000, PNG, visto.versao)
+    expect(r.ok).toBe(true)
+  })
+
+  it('sem versão, o aceite é recusado', async () => {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    await expect(aceitar(db, codigo, 48000, PNG, null)).rejects.toThrow(/total_divergente/)
+  })
+})
+
+// O desenho vem do cliente e é decodificado no celular do dono, para gerar o
+// PDF. Um PNG com cabeçalho de 20000x20000 cabe no limite de caracteres
+// (o deflate chega a 1000:1) e descomprime em centenas de megabytes.
+describe('validação do desenho PNG', () => {
+  async function tentar(desenho) {
+    const os = await osComItem(db)
+    const { codigo } = await gerarLink(db, os.id)
+    return aceitar(db, codigo, 48000, desenho)
+  }
+
+  it('aceita um PNG de tamanho razoável', async () => {
+    expect((await tentar(pngComDimensoes(500, 150))).ok).toBe(true)
+  })
+
+  it('aceita o PNG de 1x1 usado nos demais testes', async () => {
+    expect((await tentar(PNG)).ok).toBe(true)
+  })
+
+  it('recusa dimensões absurdas no cabeçalho', async () => {
+    await expect(tentar(pngComDimensoes(20000, 20000))).rejects.toThrow(/assinatura_invalida/)
+    await expect(tentar(pngComDimensoes(1201, 100))).rejects.toThrow(/assinatura_invalida/)
+    await expect(tentar(pngComDimensoes(100, 601))).rejects.toThrow(/assinatura_invalida/)
+  })
+
+  it('recusa dimensão zero', async () => {
+    await expect(tentar(pngComDimensoes(0, 100))).rejects.toThrow(/assinatura_invalida/)
+  })
+
+  it('recusa base64 que não é um PNG', async () => {
+    // "AAAA..." decodifica em bytes que não têm a assinatura do PNG.
+    await expect(tentar(`data:image/png;base64,${'A'.repeat(64)}`))
+      .rejects.toThrow(/assinatura_invalida/)
+  })
+
+  it('recusa PNG truncado, sem espaço para o cabeçalho', async () => {
+    await expect(tentar('data:image/png;base64,iVBORw0KGgo='))
+      .rejects.toThrow(/assinatura_invalida/)
   })
 })

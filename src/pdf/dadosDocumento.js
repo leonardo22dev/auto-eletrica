@@ -56,8 +56,11 @@ function formatarQuantidade(valor) {
   return Number.isInteger(n) ? String(n) : String(n).replace('.', ',')
 }
 
-function textoDaAssinatura(aceiteEm) {
-  return `Assinado digitalmente pelo cliente em ${formatarDataHora(aceiteEm)}`
+// O nome na OS segue editável depois do aceite; quem assinou foi o nome que
+// constava na hora, guardado em aceite_nome. Sem ele, a legenda genérica.
+function textoDaAssinatura(aceiteEm, nome) {
+  const quem = nome ? `por ${textoImprimivel(nome)}` : 'pelo cliente'
+  return `Assinado digitalmente ${quem} em ${formatarDataHora(aceiteEm)}`
 }
 
 export function montarDadosDocumento(os, config) {
@@ -108,7 +111,10 @@ export function montarDadosDocumento(os, config) {
     },
     textoGarantia: textoImprimivel(config.texto_garantia),
     assinatura: os.aceite_em && os.aceite_assinatura
-      ? { imagem: os.aceite_assinatura, textoData: textoDaAssinatura(os.aceite_em) }
+      ? {
+        imagem: os.aceite_assinatura,
+        textoData: textoDaAssinatura(os.aceite_em, os.aceite_nome),
+      }
       : null,
     linhas,
     total: centavosParaTexto(os.total_centavos),

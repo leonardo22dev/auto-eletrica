@@ -86,7 +86,10 @@ export default function PaginaAssinatura() {
     setAviso('')
     try {
       await registrarAceite({
-        codigo, assinatura: desenho, totalVisto: dados.os.total_centavos,
+        codigo,
+        assinatura: desenho,
+        totalVisto: dados.os.total_centavos,
+        versao: dados.versao,
       })
       setConcluido(true)
       await carregar()
@@ -96,7 +99,13 @@ export default function PaginaAssinatura() {
         // Não é falha: a tela passa a mostrar o estado real (já assinado,
         // valores atualizados, link vencido).
         const r = await carregar()
-        if (acao.texto && r?.situacao === 'valido') setAviso(acao.texto)
+        if (!r) {
+          // A releitura falhou (sem rede): sem aviso, a tela voltaria ao
+          // formulário parecendo que nada aconteceu.
+          setAviso('Não foi possível confirmar agora. Confira a conexão e toque em Confirmar de novo.')
+        } else if (acao.texto && r.situacao === 'valido') {
+          setAviso(acao.texto)
+        }
       } else {
         setAviso(acao.texto)
       }

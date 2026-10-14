@@ -218,7 +218,9 @@ describe('modo demonstração — assinatura do cliente', () => {
     expect(visto.situacao).toBe('valido')
     expect(visto.os.total_centavos).toBe(25000)
 
-    await dadosAss.registrarAceite({ codigo, assinatura: PNG, totalVisto: 25000 })
+    await dadosAss.registrarAceite({
+      codigo, assinatura: PNG, totalVisto: 25000, versao: visto.versao,
+    })
 
     const depois = await ordens.buscarOrdem(os.id)
     expect(depois.status).toBe(STATUS.APROVADA)
@@ -229,7 +231,10 @@ describe('modo demonstração — assinatura do cliente', () => {
   it('o banco recusa alterar os itens depois do aceite', async () => {
     const os = await novaOs('ASS2A23', 'Cliente Trava', 10000)
     const { codigo } = await dadosAss.gerarLinkAssinatura(os.id)
-    await dadosAss.registrarAceite({ codigo, assinatura: PNG, totalVisto: 10000 })
+    const visto = await dadosAss.obterOsParaAssinatura(codigo)
+    await dadosAss.registrarAceite({
+      codigo, assinatura: PNG, totalVisto: 10000, versao: visto.versao,
+    })
 
     await expect(ordens.atualizarItens(os.id, [
       { quantidade: '1', descricao: 'Outro', valor_unitario_centavos: 99999 },
@@ -239,8 +244,10 @@ describe('modo demonstração — assinatura do cliente', () => {
   it('total divergente é recusado com o código que a tela entende', async () => {
     const os = await novaOs('ASS3A23', 'Cliente Diverge', 10000)
     const { codigo } = await dadosAss.gerarLinkAssinatura(os.id)
-    const erro = await dadosAss.registrarAceite({ codigo, assinatura: PNG, totalVisto: 1 })
-      .catch((e) => e)
+    const visto = await dadosAss.obterOsParaAssinatura(codigo)
+    const erro = await dadosAss.registrarAceite({
+      codigo, assinatura: PNG, totalVisto: 1, versao: visto.versao,
+    }).catch((e) => e)
     expect(erro.codigo).toBe('total_divergente')
   })
 

@@ -114,7 +114,7 @@ não aprende nada sobre quais existem.
 O que a OS traz: número, data, nome, veículo, placa, itens, total e os dados da
 oficina que saem no PDF. Nada de telefone do cliente, nada de outras OS.
 
-### `registrar_aceite(p_codigo, p_assinatura, p_total_visto)` — visitante
+### `registrar_aceite(p_codigo, p_assinatura, p_total_visto, p_versao)` — visitante
 
 Grava o aceite numa transação só. Recusa, sem gravar nada, quando:
 
@@ -122,7 +122,21 @@ Grava o aceite numa transação só. Recusa, sem gravar nada, quando:
 - o status não aceita assinatura;
 - a OS já tem aceite;
 - `p_total_visto` difere do total atual (`total_divergente`);
-- o desenho está fora do formato ou do tamanho.
+- `p_versao` difere da versão atual da OS (`total_divergente`);
+- o desenho está fora do formato, do tamanho ou das dimensões.
+
+**A versão** é um resumo (md5) do nome do cliente, do total e de cada item. Ela
+existe porque conferir só o total deixava passar a troca de itens com o mesmo
+valor: o cliente via "Alternador novo, R$ 300", o dono trocava para
+"recondicionado, R$ 300", e o cliente assinava o que nunca tinha visto.
+`obter_os_para_assinatura` a devolve e a página a reenvia no aceite; a conferência
+acontece sob o lock da linha, então itens e nome não mudam entre a leitura e a
+gravação.
+
+**O desenho** é validado além do formato do texto: a assinatura de 8 bytes do PNG
+e as dimensões do cabeçalho (largura até 1200, altura até 600). Sem isso, um PNG
+com cabeçalho de 20000×20000 cabe nos 200 mil caracteres, porque o deflate
+chega a 1000:1, e derrubaria a geração do PDF no celular do dono.
 
 Quando grava: preenche as colunas `aceite_*`, e se a OS estava em **Orçamento**
 passa para **Aprovada**, com `data_aprovacao` no mesmo instante. Aprovada
@@ -144,14 +158,33 @@ direto não podem contorná-la.
 
 1. **Itens imutáveis após o aceite.** Um gatilho em `os_itens` recusa inserir,
    alterar ou apagar item cuja OS tenha `aceite_em`. A função
-   `substituir_itens` passa por ele e herda a recusa.
+   `substituir_itens` passa por ele e herda a recusa. Dois detalhes:
+   - **O item não muda de OS.** Antes, a trava olhava só a OS de destino, e um
+     item saía de uma OS assinada para outra, deixando a assinada com total sem
+     itens. A mudança de `os_id` é recusada.
+   - **A OS é lida com `for update`**, para serializar com `registrar_aceite` e
+     entre editores de itens. Com `for share` dois editores simultâneos
+     entrariam em deadlock ao promover o lock.
 2. **O aceite não é forjável.** Um gatilho em `ordens_servico` recusa qualquer
-   escrita direta nas colunas `aceite_*` e `assinatura_*` que não venha das
-   funções acima. As funções sinalizam a transação com uma variável local
-   (`set_config(..., true)`), e o gatilho só deixa passar com ela. Sem isso, um
-   funcionário poderia, pela API, escrever um aceite que o cliente nunca deu.
+   escrita direta nas colunas `aceite_*` e `assinatura_*` feita por quem vem
+   pela API. A decisão é pelo **papel de quem escreve**: dentro de uma função
+   `security definer`, `current_user` é o dono da função; na escrita pela API é
+   `anon`, `authenticated` ou `authenticator`.
+
+   A primeira versão usava um sinalizador de transação (`set_config`). Era
+   fraco: o sinalizador dura até o fim da **transação**, e o GraphQL do
+   Supabase roda as mutations de uma requisição numa transação só. Um usuário
+   logado chamava `gerar_link_assinatura` e, na mutation seguinte, escrevia o
+   aceite direto, com data retroativa e total arbitrário. O papel não se forja
+   por requisição nenhuma.
 3. **O aceite não se desfaz.** Com `aceite_em` preenchido, as colunas do aceite
-   não mudam, mesmo pelas funções.
+   e o total não mudam, para ninguém, nem pelas funções.
+
+**Limite conhecido, aceito:** um funcionário logado lê `assinatura_codigo` pela
+RLS e poderia abrir o link e assinar no lugar do cliente. O desenho do link
+(quem o tem, assina) admite isso. A trava garante que o aceite só nasce pelo
+caminho da função, com aparelho e horário gravados, não que quem assina é o
+cliente.
 
 Cancelar uma OS assinada continua permitido: é mudança de status, não de valor.
 

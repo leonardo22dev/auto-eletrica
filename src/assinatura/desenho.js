@@ -22,6 +22,15 @@ export function tracoSuficiente(comprimentoPx) {
   return comprimentoPx >= COMPRIMENTO_MINIMO_PX
 }
 
+// Atribuir canvas.width limpa o quadro, mesmo com o mesmo valor. No celular o
+// evento de resize dispara quando a barra de endereço some ao rolar a página,
+// então só se redimensiona quando o tamanho mudou de verdade (a menos de um
+// pixel), como ao girar o aparelho.
+export function precisaRedimensionar(anterior, atual) {
+  if (!anterior) return true
+  return Math.abs(anterior.w - atual.w) >= 1 || Math.abs(anterior.h - atual.h) >= 1
+}
+
 export function dimensionarParaExportar(largura, altura, larguraMaxima) {
   if (largura <= larguraMaxima) return { w: largura, h: altura }
   const fator = larguraMaxima / largura
