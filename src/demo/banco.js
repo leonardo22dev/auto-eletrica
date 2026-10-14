@@ -1,4 +1,5 @@
 import { PGlite } from '@electric-sql/pglite'
+import { STUBS_DO_SUPABASE } from './stubsSupabase.js'
 
 // OID do tipo date no Postgres.
 const DATE = 1082
@@ -9,22 +10,6 @@ const DATE = 1082
 // chave estrangeira — e os testes não pegavam porque nunca faziam login.
 export const USUARIO_DEMO_ID = '99999999-9999-4999-8999-999999999999'
 
-// O Supabase traz prontos o schema `auth`, o `storage` e os papéis. O PGlite
-// é Postgres puro, então as migrations reais rodam sobre estes stubs.
-const STUBS = `
-  create schema if not exists auth;
-  create table auth.users (id uuid primary key default gen_random_uuid());
-  create role authenticated;
-  create role anon;
-  create schema if not exists storage;
-  create table storage.buckets (
-    id text primary key, name text not null, public boolean not null default false
-  );
-  create table storage.objects (
-    id uuid primary key default gen_random_uuid(), bucket_id text, name text
-  );
-  alter table storage.objects enable row level security;
-`
 
 // As migrations entram como texto no bundle, na ordem do nome do arquivo —
 // as mesmas que vão para o Supabase de verdade.
@@ -81,8 +66,11 @@ export function bancoDemo() {
     // string 'YYYY-MM-DD'. Sem igualar isso, a demonstração mente sobre o
     // tipo e o cálculo de garantia, que trata datas como texto, falha só aqui.
     const db = await new PGlite({ parsers: { [DATE]: (v) => v } })
-    await db.exec(STUBS)
-    await db.query('insert into auth.users (id) values ($1)', [USUARIO_DEMO_ID])
+    await db.exec(STUBS_DO_SUPABASE)
+    await db.query(
+      'insert into auth.users (id, email) values ($1, $2)',
+      [USUARIO_DEMO_ID, 'demonstracao@mizuho.local'],
+    )
     for (const caminho of Object.keys(MIGRATIONS).sort()) {
       await db.exec(MIGRATIONS[caminho])
     }
