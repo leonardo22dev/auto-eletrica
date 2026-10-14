@@ -2,17 +2,18 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Download, MessageCircle, Copy } from 'lucide-react'
 import {
-  buscarOrdem, atualizarItens, mudarStatus, cancelarOrdem,
+  buscarOrdem, atualizarItens, atualizarDadosDaOs, mudarStatus, cancelarOrdem,
 } from '../data/ordens.js'
 import { useConfiguracoes } from '../data/configuracoes.js'
 import { STATUS, transicoesPermitidas, rotuloStatus } from '../lib/status.js'
-import { formatarData, formatarDataHora } from '../lib/datas.js'
+import { formatarData, formatarDataHora, hojeISO } from '../lib/datas.js'
 import { formatarPlaca } from '../lib/placa.js'
 import { formatarBRL } from '../lib/dinheiro.js'
 import { vencimentoGarantia } from '../lib/garantia.js'
 import { salvarRascunho } from './rascunho.js'
 import { editadaDepoisDeEmitida } from './edicao.js'
 import ItensEditor from './ItensEditor.jsx'
+import CamposDaOs from './CamposDaOs.jsx'
 import Botao from '../ui/Botao.jsx'
 import Chip from '../ui/Chip.jsx'
 
@@ -44,17 +45,31 @@ export default function DetalheOS() {
   const [erro, setErro] = useState('')
   const [aviso, setAviso] = useState('')
   const [ocupado, setOcupado] = useState(false)
+  const [editandoDados, setEditandoDados] = useState(false)
+  const [campos, setCampos] = useState(null)
 
   const buscar = useCallback(
     () =>
       buscarOrdem(id)
-        .then((o) => { setOs(o); setItens(o.itens); setErro(''); return o })
+        .then((o) => { setOs(o); setItens(o.itens); setCampos(null); setErro(''); return o })
         .catch((e) => { setErro(e.message); return null })
         .finally(() => setCarregando(false)),
     [id],
   )
 
   useEffect(() => { buscar() }, [buscar])
+
+  // Semeado durante o render, nao em efeito: em efeito custaria um render
+  // extra e um piscar de campos vazios.
+  if (os && !campos) {
+    setCampos({
+      veiculo_placa: os.veiculo_placa,
+      data_os: os.data_os,
+      cliente_nome: os.cliente_nome,
+      cliente_telefone: os.cliente_telefone || '',
+      veiculo_descricao: os.veiculo_descricao,
+    })
+  }
 
   async function executar(acao) {
     setOcupado(true)
@@ -82,6 +97,14 @@ export default function DetalheOS() {
         `${a} O PDF publicado não pôde ser atualizado — reenvie pelo WhatsApp.`.trim())
     }
   }
+
+  const salvarDados = () => executar(async () => {
+    await atualizarDadosDaOs(os.id, campos)
+    const atualizada = await buscar()
+    setEditandoDados(false)
+    setAviso('Dados salvos.')
+    await regerarPdfPublicado(atualizada)
+  })
 
   const salvarItens = () => executar(async () => {
     await atualizarItens(os.id, itens)
@@ -133,7 +156,14 @@ export default function DetalheOS() {
 
   function duplicar() {
     salvarRascunho({
-      placa: os.veiculo_placa,
+      // A data da copia e hoje, nao a da OS original: e uma OS nova.
+      campos: {
+        veiculo_placa: os.veiculo_placa,
+        data_os: hojeISO(),
+        cliente_nome: os.cliente_nome,
+        cliente_telefone: os.cliente_telefone || '',
+        veiculo_descricao: os.veiculo_descricao,
+      },
       itens: itens.map((i) => ({
         quantidade: String(i.quantidade),
         descricao: i.descricao,
@@ -149,8 +179,8 @@ export default function DetalheOS() {
   if (!os) return null
 
   const meses = config?.garantia_meses ?? 3
-  const vencimento = os.data_conclusao
-    ? vencimentoGarantia(os.data_conclusao, meses)
+  const vencimento = os.status === STATUS.FINALIZADA
+    ? vencimentoGarantia(os.data_os, meses)
     : null
 
   return (
@@ -161,7 +191,7 @@ export default function DetalheOS() {
           onClick={() => navegar('/os')}
           className="mb-2 text-sm font-semibold text-[#9A9490]"
         >
-          ← Ordens de Serviço
+          ← Histórico
         </button>
         <div className="flex items-center justify-between gap-3">
           <span className="text-xl font-extrabold tracking-tight">
@@ -169,34 +199,55 @@ export default function DetalheOS() {
           </span>
           <Chip status={os.status} />
         </div>
-        <p className="text-[11.5px] text-[#9A9490]">
-          Aberta {formatarData(os.data_abertura)}
-          {os.data_conclusao ? ` · concluída ${formatarData(os.data_conclusao)}` : ''}
-        </p>
+        <p className="text-[11.5px] text-[#9A9490]">{formatarData(os.data_os)}</p>
         <MarcaDeEdicao os={os} />
       </header>
 
       <div className="flex-1 p-4">
-        {/* Lido da cópia congelada na emissão, não do cadastro atual: é o que
-            o documento emitiu. */}
-        <dl className="mb-3 rounded-xl border border-linha bg-paper p-3">
-          {[
-            ['Cliente', os.cliente_nome],
-            ['Telefone', os.cliente_telefone || '—'],
-            ['Veículo', os.veiculo_descricao],
-            ['Placa', formatarPlaca(os.veiculo_placa)],
-          ].map(([rotulo, valor], i, lista) => (
-            <div
-              key={rotulo}
-              className={`flex justify-between py-1.5 text-[12.5px] ${
-                i < lista.length - 1 ? 'border-b border-linha' : ''
-              }`}
+        <div className="mb-3 rounded-xl border border-linha bg-paper p-3">
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-[10px] font-bold tracking-[0.14em] text-mute uppercase">
+              Dados do documento
+            </h2>
+            <button
+              type="button"
+              onClick={() => setEditandoDados((v) => !v)}
+              className="text-sm font-semibold text-red"
             >
-              <dt className="text-mute">{rotulo}</dt>
-              <dd className="font-bold">{valor}</dd>
-            </div>
-          ))}
-        </dl>
+              {editandoDados ? 'Cancelar' : 'Editar'}
+            </button>
+          </div>
+
+          {editandoDados && campos ? (
+            <>
+              <CamposDaOs campos={campos} aoMudar={setCampos} />
+              <Botao variante="fantasma" tamanho="pequeno" onClick={salvarDados}
+                disabled={ocupado}>
+                Salvar dados
+              </Botao>
+            </>
+          ) : (
+            <dl>
+              {[
+                ['Data', formatarData(os.data_os)],
+                ['Cliente', os.cliente_nome],
+                ['Telefone', os.cliente_telefone || '—'],
+                ['Veículo', os.veiculo_descricao],
+                ['Placa', formatarPlaca(os.veiculo_placa)],
+              ].map(([rotulo, valor], i, lista) => (
+                <div
+                  key={rotulo}
+                  className={`flex justify-between py-1.5 text-[12.5px] ${
+                    i < lista.length - 1 ? 'border-b border-linha' : ''
+                  }`}
+                >
+                  <dt className="text-mute">{rotulo}</dt>
+                  <dd className="font-bold">{valor}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </div>
 
         <h2 className="mb-2 text-[10px] font-bold tracking-[0.14em] text-mute uppercase">
           Itens
