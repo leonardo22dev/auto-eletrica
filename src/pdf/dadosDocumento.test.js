@@ -198,3 +198,27 @@ describe('tamanhoDaRazaoSocial', () => {
     expect(d.empresa.tamanhoRazao).toBe(tamanhoDaRazaoSocial(d.empresa.razaoSocial))
   })
 })
+
+describe('assinatura do cliente no documento', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgo='
+
+  it('sem aceite, não há assinatura', () => {
+    expect(montarDadosDocumento(OS, CONFIG).assinatura).toBe(null)
+  })
+
+  it('com aceite, entrega o desenho e a data do aceite', () => {
+    const d = montarDadosDocumento({
+      ...OS, aceite_em: '2026-10-14T15:32:00-03:00', aceite_assinatura: PNG,
+    }, CONFIG)
+    expect(d.assinatura.imagem).toBe(PNG)
+    expect(d.assinatura.textoData).toBe(
+      'Assinado digitalmente pelo cliente em 14/10/2026 às 15:32')
+  })
+
+  it('aceite sem desenho não imprime assinatura', () => {
+    const d = montarDadosDocumento({
+      ...OS, aceite_em: '2026-10-14T15:32:00-03:00', aceite_assinatura: null,
+    }, CONFIG)
+    expect(d.assinatura).toBe(null)
+  })
+})

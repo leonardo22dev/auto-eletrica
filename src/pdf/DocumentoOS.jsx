@@ -72,6 +72,8 @@ const s = StyleSheet.create({
   assinatura: { marginTop: 18, alignItems: 'center' },
   riscoAssinatura: { borderTopWidth: 0.8, borderTopColor: PRETO, width: 200, marginBottom: 3 },
   rotuloAssinatura: { fontSize: 8 },
+  imagemAssinatura: { height: 46, objectFit: 'contain', marginBottom: 2 },
+  textoAssinado: { fontSize: 7, marginTop: 2, color: '#444444' },
 })
 
 function Celula({ estilo, children }) {
@@ -184,8 +186,14 @@ export default function DocumentoOS({ dados, logoSrc }) {
           </View>
 
           <View style={s.assinatura}>
+            {dados.assinatura && (
+              <Image style={s.imagemAssinatura} src={dados.assinatura.imagem} />
+            )}
             <View style={s.riscoAssinatura} />
             <Text style={s.rotuloAssinatura}>Assinatura do Cliente</Text>
+            {dados.assinatura && (
+              <Text style={s.textoAssinado}>{dados.assinatura.textoData}</Text>
+            )}
           </View>
         </View>
       </Page>

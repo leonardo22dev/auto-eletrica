@@ -158,3 +158,36 @@ describe('DocumentoOS', () => {
     expect(texto).toContain('Peça número 25')
   })
 })
+
+describe('DocumentoOS — assinatura do cliente', () => {
+  // PNG 1x1 válido.
+  const PNG =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+
+  function contarImagens(buffer) {
+    return (buffer.toString('latin1').match(/\/Subtype\s*\/Image/g) || []).length
+  }
+
+  it('imprime o texto da data do aceite', async () => {
+    const texto = textoDoPdf(await renderizar({
+      ...OS, aceite_em: '2026-10-14T15:32:00-03:00', aceite_assinatura: PNG,
+    }))
+    expect(texto).toContain('Assinado digitalmente pelo cliente em 14/10/2026 às 15:32')
+  })
+
+  it('inclui o desenho como imagem no arquivo', async () => {
+    const sem = await renderizar(OS)
+    const com = await renderizar({
+      ...OS, aceite_em: '2026-10-14T15:32:00-03:00', aceite_assinatura: PNG,
+    })
+    // PNG com transparência entra como imagem + máscara: dois objetos, não um.
+    // O que importa é que a assinatura acrescenta imagem ao arquivo.
+    expect(contarImagens(sem)).toBe(0)
+    expect(contarImagens(com)).toBeGreaterThan(0)
+  })
+
+  it('sem aceite, o PDF sai como antes', async () => {
+    const texto = textoDoPdf(await renderizar(OS))
+    expect(texto).not.toContain('Assinado digitalmente')
+  })
+})

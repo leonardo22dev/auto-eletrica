@@ -2,6 +2,7 @@ import { tituloDocumento } from '../lib/status.js'
 import { dataPorExtenso } from '../lib/datas.js'
 import { formatarPlaca } from '../lib/placa.js'
 import { centavosParaTexto } from '../lib/dinheiro.js'
+import { formatarDataHora } from '../lib/datas.js'
 
 // O talão de papel tem 18 linhas fixas. Manter isso preserva o peso visual
 // do documento e deixa espaço para anotação à mão na oficina.
@@ -55,6 +56,10 @@ function formatarQuantidade(valor) {
   return Number.isInteger(n) ? String(n) : String(n).replace('.', ',')
 }
 
+function textoDaAssinatura(aceiteEm) {
+  return `Assinado digitalmente pelo cliente em ${formatarDataHora(aceiteEm)}`
+}
+
 export function montarDadosDocumento(os, config) {
   const itens = (os.itens || []).slice().sort((a, b) => a.posicao - b.posicao)
 
@@ -102,6 +107,9 @@ export function montarDadosDocumento(os, config) {
       placa: formatarPlaca(os.veiculo_placa),
     },
     textoGarantia: textoImprimivel(config.texto_garantia),
+    assinatura: os.aceite_em && os.aceite_assinatura
+      ? { imagem: os.aceite_assinatura, textoData: textoDaAssinatura(os.aceite_em) }
+      : null,
     linhas,
     total: centavosParaTexto(os.total_centavos),
   }
