@@ -29,3 +29,4 @@ dist-ssr
 
 # Area de trabalho do executor de planos (scratch, nao versionar)
 .superpowers
+.vercel
