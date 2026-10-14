@@ -2,6 +2,7 @@ import { supabase } from '../data/supabase.js'
 import { registrarPdfDaOrdem } from '../data/ordens.js'
 import { gerarPdfDaOS, nomeArquivoPdf } from './gerar.jsx'
 import { linkWhatsApp } from '../lib/telefone.js'
+import { mensagemWhatsApp } from './mensagem.js'
 
 const BUCKET = 'os-pdfs'
 
@@ -37,20 +38,11 @@ async function subirPdf(os, blob, caminhoExistente) {
   return data.publicUrl
 }
 
-function mensagem(os, config, url) {
-  const titulo = os.numero == null ? 'sua ordem de serviço' : `a OS nº ${os.numero}`
-  const linhas = [
-    `Olá, ${os.cliente_nome}! Segue ${titulo} da ${config.razao_social}.`,
-    `Veículo: ${os.veiculo_descricao} — ${os.veiculo_placa}`,
-  ]
-  if (url) linhas.push(url)
-  return linhas.join('\n')
-}
-
 // No celular, a Web Share API entrega o arquivo direto ao WhatsApp.
 // No desktop isso não existe: o navegador não anexa arquivo no WhatsApp Web,
-// então o PDF sobe para o Storage e vai o link.
-export async function enviarOsPorWhatsApp({ os, config }) {
+// então o PDF sobe para o Storage e vai o link. Nos dois casos, quando a OS
+// aceita assinatura, a mensagem leva também o link para o cliente assinar.
+export async function enviarOsPorWhatsApp({ os, config, urlAssinatura }) {
   const blob = await gerarPdfDaOS(os, config)
   const nome = nomeArquivoPdf(os)
   const arquivo = new File([blob], nome, { type: 'application/pdf' })
@@ -60,7 +52,7 @@ export async function enviarOsPorWhatsApp({ os, config }) {
       await navigator.share({
         files: [arquivo],
         title: nome,
-        text: mensagem(os, config, null),
+        text: mensagemWhatsApp({ os, config, urlAssinatura }),
       })
       return { via: 'compartilhamento' }
     } catch (erro) {
@@ -70,9 +62,10 @@ export async function enviarOsPorWhatsApp({ os, config }) {
   }
 
   try {
-    const url = await subirPdf(os, blob)
-    window.open(linkWhatsApp(os.cliente_telefone, mensagem(os, config, url)), '_blank')
-    return { via: 'link', url }
+    const urlPdf = await subirPdf(os, blob)
+    const texto = mensagemWhatsApp({ os, config, urlPdf, urlAssinatura })
+    window.open(linkWhatsApp(os.cliente_telefone, texto), '_blank')
+    return { via: 'link', url: urlPdf }
   } catch {
     // Sem rede para subir, ao menos entrega o arquivo na mão do dono.
     baixarPdf(blob, nome)

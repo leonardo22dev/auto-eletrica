@@ -6,6 +6,7 @@ import { STATUS } from './lib/status.js'
 import { hojeISO } from './lib/datas.js'
 import { formatarBRL, somarCentavos } from './lib/dinheiro.js'
 import { LinhaOS } from './os/ListaOS.jsx'
+import { situacaoDoLink } from './assinatura/estado.js'
 import Botao from './ui/Botao.jsx'
 import EstadoVazio from './ui/EstadoVazio.jsx'
 
@@ -53,6 +54,7 @@ export default function Inicio() {
             orcamentos: orcamentos.length,
             faturado,
             pendentes,
+            aguardando: pendentes.filter((o) => situacaoDoLink(o) === 'aguardando').length,
           })
           setErro('')
         })
@@ -79,6 +81,14 @@ export default function Inicio() {
             <Numero valor={dados.orcamentos} rotulo="Orçam." />
             <Numero valor={formatarBRL(dados.faturado)} rotulo="Mês" miudo />
           </div>
+
+          {dados.aguardando > 0 && (
+            <p className="mb-3 rounded-xl border border-[#F2D479] bg-[#FEF3C7] px-3 py-2.5 text-[13px] font-semibold text-[#7A4A06]">
+              {dados.aguardando}{' '}
+              {dados.aguardando === 1 ? 'orçamento aguardando' : 'orçamentos aguardando'}{' '}
+              assinatura do cliente.
+            </p>
+          )}
 
           <h2 className="mb-2 text-[9.5px] font-bold tracking-[0.14em] text-mute uppercase">
             Em aberto

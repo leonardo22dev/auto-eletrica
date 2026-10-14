@@ -16,6 +16,10 @@ import ItensEditor from './ItensEditor.jsx'
 import CamposDaOs from './CamposDaOs.jsx'
 import Botao from '../ui/Botao.jsx'
 import Chip from '../ui/Chip.jsx'
+import { gerarLinkAssinatura } from '../data/assinatura.js'
+import { situacaoDoLink } from '../assinatura/estado.js'
+import { urlDeAssinatura } from '../assinatura/codigo.js'
+import BlocoAssinatura from '../assinatura/BlocoAssinatura.jsx'
 
 const ROTULO_ACAO = {
   [STATUS.APROVADA]: 'Aprovar',
@@ -155,16 +159,38 @@ export default function DetalheOS() {
     setAviso('PDF gerado.')
   })
 
+  // O link nasce no primeiro envio e é reaproveitado enquanto valer.
+  async function linkParaEnviar() {
+    const situacao = situacaoDoLink(os)
+    if (situacao === 'assinada' || situacao === 'indisponivel') return undefined
+    const { codigo } = await gerarLinkAssinatura(os.id)
+    await buscar()
+    return urlDeAssinatura(window.location.origin, codigo)
+  }
+
   const whatsapp = () => executar(async () => {
+    const urlAssinatura = await linkParaEnviar()
     const { enviarOsPorWhatsApp } = await import('../pdf/compartilhar.js')
-    const r = await enviarOsPorWhatsApp({ os, config })
+    const r = await enviarOsPorWhatsApp({ os, config, urlAssinatura })
     const mensagens = {
       compartilhamento: 'PDF entregue ao aplicativo escolhido.',
-      link: 'WhatsApp aberto com o link do PDF.',
+      link: 'WhatsApp aberto com o PDF e o link de assinatura.',
       download: 'Sem conexão para enviar: o PDF foi baixado.',
       cancelado: '',
     }
     setAviso(mensagens[r.via] ?? '')
+  })
+
+  const copiarLink = () => executar(async () => {
+    const { codigo } = await gerarLinkAssinatura(os.id)
+    await navigator.clipboard.writeText(urlDeAssinatura(window.location.origin, codigo))
+    setAviso('Link copiado.')
+  })
+
+  const novoLink = () => executar(async () => {
+    await gerarLinkAssinatura(os.id, { renovar: true })
+    await buscar()
+    setAviso('Novo link gerado. O anterior não vale mais; envie de novo.')
   })
 
   function duplicar() {
@@ -263,14 +289,16 @@ export default function DetalheOS() {
         <h2 className="mb-2 text-[10px] font-bold tracking-[0.14em] text-mute uppercase">
           Itens
         </h2>
-        <ItensEditor itens={itens} aoMudar={setItens} />
+        <ItensEditor itens={itens} aoMudar={setItens} somenteLeitura={Boolean(os.aceite_em)} />
 
-        <div className="mt-2">
-          <Botao variante="fantasma" tamanho="pequeno" onClick={salvarItens}
-            disabled={ocupado}>
-            Salvar itens
-          </Botao>
-        </div>
+        {!os.aceite_em && (
+          <div className="mt-2">
+            <Botao variante="fantasma" tamanho="pequeno" onClick={salvarItens}
+              disabled={ocupado}>
+              Salvar itens
+            </Botao>
+          </div>
+        )}
 
         <div className="mt-3 flex items-baseline justify-between rounded-xl border border-linha bg-paper px-3 py-3">
           <span className="text-[10px] font-bold tracking-[0.14em] text-mute uppercase">
@@ -280,6 +308,8 @@ export default function DetalheOS() {
             {formatarBRL(os.total_centavos)}
           </strong>
         </div>
+
+        <BlocoAssinatura os={os} aoCopiar={copiarLink} aoRenovar={novoLink} ocupado={ocupado} />
 
         {os.observacoes && (
           <div className="mt-3 rounded-xl border border-linha bg-paper p-3">

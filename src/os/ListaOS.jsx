@@ -11,6 +11,26 @@ import Busca from '../ui/Busca.jsx'
 import Botao from '../ui/Botao.jsx'
 import Chip from '../ui/Chip.jsx'
 import EstadoVazio from '../ui/EstadoVazio.jsx'
+import { situacaoDoLink } from '../assinatura/estado.js'
+
+function SeloAssinatura({ os }) {
+  const s = situacaoDoLink(os)
+  if (s === 'assinada') {
+    return (
+      <span className="ml-1 inline-block rounded-full bg-[#DCFCE7] px-2 py-[3px] text-[9.5px] font-bold tracking-[0.07em] text-[#15803D] uppercase">
+        Assinada
+      </span>
+    )
+  }
+  if (s === 'aguardando') {
+    return (
+      <span className="ml-1 inline-block rounded-full border border-[#B45309] px-2 py-[2px] text-[9.5px] font-bold tracking-[0.07em] text-[#B45309] uppercase">
+        Aguardando
+      </span>
+    )
+  }
+  return null
+}
 
 const FILTROS = [
   { valor: '', rotulo: 'Todas' },
@@ -40,6 +60,7 @@ export function LinhaOS({ os, aoClicar }) {
           {formatarBRL(os.total_centavos)}
         </span>
         <Chip status={os.status} />
+        <SeloAssinatura os={os} />
       </span>
     </button>
   )
