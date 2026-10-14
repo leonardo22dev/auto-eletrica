@@ -1,113 +1,79 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { buscarVeiculoPorPlaca, buscarVeiculo, criarVeiculo, descricaoVeiculo } from '../data/veiculos.js'
-import { criarCliente } from '../data/clientes.js'
-import { criarOrdem, ultimaOrdemDoVeiculo, servicoPrincipal } from '../data/ordens.js'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  criarOrdem, ultimaOsDaPlaca, ultimaOsFinalizadaDaPlaca, servicoPrincipal,
+} from '../data/ordens.js'
 import { useConfiguracoes } from '../data/configuracoes.js'
-import { normalizarPlaca, placaValida, formatarPlaca } from '../lib/placa.js'
+import { placaValida } from '../lib/placa.js'
 import { vencimentoGarantia, garantiaVigente } from '../lib/garantia.js'
 import { formatarData, hojeISO } from '../lib/datas.js'
 import { formatarBRL, somarCentavos, totalDoItem } from '../lib/dinheiro.js'
 import { STATUS } from '../lib/status.js'
-import SelecionarCliente from '../clientes/SelecionarCliente.jsx'
-import FormVeiculo from '../veiculos/FormVeiculo.jsx'
+import CamposDaOs from './CamposDaOs.jsx'
 import ItensEditor from './ItensEditor.jsx'
 import { ITEM_VAZIO } from './item.js'
+import { CAMPOS_VAZIOS } from './dadosOs.js'
 import { salvarRascunho, lerRascunho, limparRascunho } from './rascunho.js'
 import Botao from '../ui/Botao.jsx'
 
 export default function NovaOS() {
   const navegar = useNavigate()
-  const [params] = useSearchParams()
   const { config } = useConfiguracoes()
 
-  const [placa, setPlaca] = useState('')
-  const [veiculo, setVeiculo] = useState(null)
-  const [ultimaOS, setUltimaOS] = useState(null)
-  const [consultando, setConsultando] = useState(false)
-  const [naoEncontrado, setNaoEncontrado] = useState(false)
-  const [donoDoVeiculo, setDonoDoVeiculo] = useState(null)
-
+  const [campos, setCampos] = useState(CAMPOS_VAZIOS)
   const [itens, setItens] = useState([{ ...ITEM_VAZIO }])
   const [observacoes, setObservacoes] = useState('')
+
+  const [sugestao, setSugestao] = useState(null)
+  const [ultimaFinalizada, setUltimaFinalizada] = useState(null)
+  const [placaConsultada, setPlacaConsultada] = useState('')
+
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [rascunhoOferecido, setRascunhoOferecido] = useState(lerRascunho())
 
-  const veiculoDaUrl = params.get('veiculo')
+  const placa = campos.veiculo_placa
 
-  const carregarVeiculo = useCallback(async (v) => {
-    setVeiculo(v)
-    setNaoEncontrado(false)
-    setPlaca(normalizarPlaca(v.placa))
-    try {
-      setUltimaOS(await ultimaOrdemDoVeiculo(v.id))
-    } catch {
-      setUltimaOS(null)
-    }
-  }, [])
-
-  // Veículo vindo da ficha: pula a digitação da placa.
+  // A placa é a memória do sistema agora: não há cadastro, então o que o app
+  // sabe daquele carro é o que foi digitado nas OS anteriores.
+  //
+  // O efeito não limpa estado de forma síncrona: a placa inválida é tratada
+  // na renderização, derivando de `placaConsultada`. E `cancelado` impede que
+  // uma resposta atrasada de uma placa antiga sobrescreva a da placa atual —
+  // digitar rápido num 4G de oficina produz exatamente essa corrida.
   useEffect(() => {
-    if (!veiculoDaUrl) return
-    buscarVeiculo(veiculoDaUrl).then(carregarVeiculo).catch((e) => setErro(e.message))
-  }, [veiculoDaUrl, carregarVeiculo])
+    if (!placaValida(placa)) return undefined
+    let cancelado = false
+    Promise.all([ultimaOsDaPlaca(placa), ultimaOsFinalizadaDaPlaca(placa)])
+      .then(([anterior, finalizada]) => {
+        if (cancelado) return
+        setSugestao(anterior)
+        setUltimaFinalizada(finalizada)
+        setPlacaConsultada(placa)
+      })
+      .catch((e) => { if (!cancelado) setErro(e.message) })
+    return () => { cancelado = true }
+  }, [placa])
 
-  // Rascunho é salvo a cada mudança, para que queda de conexão ou recarga
-  // acidental não custem a OS inteira digitada em pé ao lado do carro.
   useEffect(() => {
     if (!placa && itens.length === 1 && !itens[0].descricao) return
-    salvarRascunho({ placa, itens, observacoes })
-  }, [placa, itens, observacoes])
+    salvarRascunho({ campos, itens, observacoes })
+  }, [campos, itens, observacoes, placa])
 
-  async function consultarPlaca(valor) {
-    const p = normalizarPlaca(valor)
-    setPlaca(p)
-    setVeiculo(null)
-    setUltimaOS(null)
-    setNaoEncontrado(false)
-    // Sem limpar o dono, quem escolhesse o cliente e então corrigisse a placa
-    // para uma já cadastrada deixaria a escolha pendurada.
-    setDonoDoVeiculo(null)
-    if (!placaValida(p)) return
-
-    setConsultando(true)
-    try {
-      const achado = await buscarVeiculoPorPlaca(p)
-      if (achado) await carregarVeiculo(achado)
-      else setNaoEncontrado(true)
-    } catch (e) {
-      setErro(e.message)
-    } finally {
-      setConsultando(false)
-    }
-  }
-
-  async function salvarVeiculoNovo(dados) {
-    const novo = await criarVeiculo({ ...dados, cliente_id: donoDoVeiculo.id })
-    await carregarVeiculo({ ...novo, cliente: donoDoVeiculo })
-    setDonoDoVeiculo(null)
+  function usarSugestao() {
+    setCampos((c) => ({
+      ...c,
+      cliente_nome: sugestaoValida.cliente_nome,
+      cliente_telefone: sugestaoValida.cliente_telefone || '',
+      veiculo_descricao: sugestaoValida.veiculo_descricao,
+    }))
   }
 
   async function gerar(status) {
-    if (!veiculo) {
-      setErro('Informe a placa do veículo.')
-      return
-    }
     setErro('')
     setSalvando(true)
     try {
-      const os = await criarOrdem({
-        cliente: veiculo.cliente,
-        veiculo: {
-          id: veiculo.id,
-          placa: veiculo.placa,
-          descricao: descricaoVeiculo(veiculo),
-        },
-        itens,
-        status,
-        observacoes,
-      })
+      const os = await criarOrdem({ dados: campos, itens, status, observacoes })
       limparRascunho()
       navegar(`/os/${os.id}`)
     } catch (e) {
@@ -123,7 +89,8 @@ export default function NovaOS() {
     if (!r) return
     setObservacoes(r.observacoes || '')
     setItens(r.itens?.length ? r.itens : [{ ...ITEM_VAZIO }])
-    if (r.placa) consultarPlaca(r.placa)
+    // Rascunho no formato antigo não tem `campos`; cai no vazio sem quebrar.
+    setCampos({ ...CAMPOS_VAZIOS(), ...(r.campos || {}) })
   }
 
   function descartarRascunho() {
@@ -135,9 +102,17 @@ export default function NovaOS() {
     itens.map((i) => totalDoItem(i.quantidade, i.valor_unitario_centavos)),
   )
 
+  // Resultado de outra placa nao vale para esta.
+  const atual = placaConsultada === placa
+  // Derivado, nao guardado: esta consultando enquanto a placa valida
+  // digitada ainda nao e a que voltou do banco.
+  const consultando = placaValida(placa) && !atual
+  const sugestaoValida = atual ? sugestao : null
+  const finalizadaValida = atual ? ultimaFinalizada : null
+
   const meses = config?.garantia_meses ?? 3
-  const vencimento = ultimaOS?.data_conclusao
-    ? vencimentoGarantia(ultimaOS.data_conclusao, meses)
+  const vencimento = finalizadaValida
+    ? vencimentoGarantia(finalizadaValida.data_os, meses)
     : null
   const emGarantia = garantiaVigente(vencimento, hojeISO())
 
@@ -169,75 +144,39 @@ export default function NovaOS() {
           </div>
         )}
 
-        <label
-          htmlFor="placa-os"
-          className="mb-1.5 block text-[10px] font-bold tracking-[0.12em] text-mute uppercase"
-        >
-          Placa
-        </label>
-        <input
-          id="placa-os"
-          value={placa}
-          onChange={(e) => consultarPlaca(e.target.value)}
-          maxLength={7}
-          autoCapitalize="characters"
-          placeholder="ABC1D23"
-          className="mb-3 h-15 w-full rounded-xl border-[1.5px] border-ink bg-paper text-center text-2xl font-extrabold tracking-[0.14em] focus:outline-none"
-        />
+        <CamposDaOs campos={campos} aoMudar={setCampos} />
 
         {consultando && <p className="mb-3 text-sm text-mute">Consultando…</p>}
 
-        {veiculo && (
-          <div className="mb-2 rounded-xl border border-[#BCE5C8] bg-[#F0FAF2] px-3 py-2.5">
+        {sugestaoValida && (
+          <div className="mb-3 rounded-xl border border-[#BCE5C8] bg-[#F0FAF2] px-3 py-2.5">
             <span className="block text-[13px] font-bold">
-              {descricaoVeiculo(veiculo) || formatarPlaca(veiculo.placa)}
+              Última OS deste carro
+              {sugestaoValida.numero ? ` — nº ${sugestaoValida.numero}` : ''}
             </span>
             <span className="text-[11.5px] text-[#3D6B4B]">
-              {veiculo.cliente?.nome}
-              {veiculo.cliente?.telefone ? ` · ${veiculo.cliente.telefone}` : ''}
+              {sugestaoValida.cliente_nome}
+              {sugestaoValida.cliente_telefone ? ` · ${sugestaoValida.cliente_telefone}` : ''}
+              {` · ${sugestaoValida.veiculo_descricao}`}
             </span>
+            <button
+              type="button"
+              onClick={usarSugestao}
+              className="mt-2 h-10 rounded-lg bg-ink px-3 text-xs font-bold text-white"
+            >
+              Usar estes dados
+            </button>
           </div>
         )}
 
-        {emGarantia && ultimaOS && (
+        {emGarantia && finalizadaValida && (
           <div className="mb-3 rounded-xl border border-[#F2D479] bg-[#FEF3C7] px-3 py-2.5 text-[11.5px] leading-snug text-[#7A4A06]">
             <strong className="font-extrabold">Garantia vigente</strong> até{' '}
-            {formatarData(vencimento)} — OS nº {ultimaOS.numero ?? '—'}
-            {servicoPrincipal(ultimaOS) ? `, ${servicoPrincipal(ultimaOS)}` : ''},
-            concluída em {formatarData(ultimaOS.data_conclusao)}.
-          </div>
-        )}
-
-        {naoEncontrado && !donoDoVeiculo && (
-          <div className="mb-3 rounded-xl border border-linha bg-paper p-4">
-            <p className="mb-3 text-sm text-mute">
-              Placa não cadastrada. Escolha o dono — ou cadastre, se for cliente novo.
-            </p>
-            <SelecionarCliente
-              aoEscolher={setDonoDoVeiculo}
-              aoCriar={async (dados) => setDonoDoVeiculo(await criarCliente(dados))}
-            />
-          </div>
-        )}
-
-        {naoEncontrado && donoDoVeiculo && (
-          <div className="mb-3 rounded-xl border border-linha bg-paper p-4">
-            <p className="mb-3 text-sm text-mute">
-              Carro de <strong>{donoDoVeiculo.nome}</strong>.{' '}
-              <button
-                type="button"
-                onClick={() => setDonoDoVeiculo(null)}
-                className="font-semibold text-red underline"
-              >
-                trocar
-              </button>
-            </p>
-            <FormVeiculo
-              embutido
-              clienteId={donoDoVeiculo.id}
-              valorInicial={{ placa }}
-              aoSalvar={salvarVeiculoNovo}
-            />
+            {formatarData(vencimento)} — OS nº {finalizadaValida.numero ?? '—'}
+            {servicoPrincipal(finalizadaValida)
+              ? `, ${servicoPrincipal(finalizadaValida)}`
+              : ''}
+            , de {formatarData(finalizadaValida.data_os)}.
           </div>
         )}
 
@@ -278,14 +217,14 @@ export default function NovaOS() {
           <Botao
             variante="fantasma"
             tamanho="pequeno"
-            disabled={salvando || !veiculo}
+            disabled={salvando}
             onClick={() => gerar(STATUS.ORCAMENTO)}
           >
             Orçamento
           </Botao>
           <Botao
             tamanho="pequeno"
-            disabled={salvando || !veiculo}
+            disabled={salvando}
             onClick={() => gerar(STATUS.APROVADA)}
           >
             Gerar OS
