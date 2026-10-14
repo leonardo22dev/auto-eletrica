@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from './contexto.js'
+import { modoDemo } from '../data/supabase.js'
 
 export default function LoginScreen() {
   const { entrar } = useAuth()
@@ -80,6 +81,14 @@ export default function LoginScreen() {
             className="h-12 w-full rounded-xl border-[1.5px] border-white/20 bg-white/8 px-3.5 text-base font-semibold text-white focus:border-white/50 focus:outline-none"
           />
         </div>
+
+        {modoDemo && (
+          <div className="rounded-xl border border-[#F2D479] bg-[#FEF3C7] px-3 py-2.5 text-[12px] leading-snug text-[#7A4A06]">
+            <strong className="font-extrabold">Modo demonstração.</strong> Entre com
+            qualquer e-mail e senha. Os dados são de exemplo, vivem só nesta aba e
+            somem ao recarregar a página.
+          </div>
+        )}
 
         {erro && (
           <p role="alert" className="rounded-lg bg-red/20 px-3 py-2 text-sm text-[#FFC9C2]">

@@ -17,8 +17,10 @@ function exigirAmbiente(env) {
 }
 
 export default defineConfig(({ command, mode }) => {
-  if (command === 'build') {
-    exigirAmbiente(loadEnv(mode, process.cwd(), 'VITE_'))
+  const env = loadEnv(mode, process.cwd(), 'VITE_')
+  // O modo demonstração traz o próprio banco e não fala com o Supabase.
+  if (command === 'build' && env.VITE_MODO_DEMO !== '1') {
+    exigirAmbiente(env)
   }
   return {
     plugins: [react(), tailwindcss()],
