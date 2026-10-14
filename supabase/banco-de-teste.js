@@ -32,20 +32,39 @@ export function concederComoOSupabase(db) {
 
 // `ate` é o prefixo da última migration a aplicar (ex.: '0007'): serve para
 // testar o caminho de quem já usava o sistema antes da atualização.
+// Aplicar dez migrations a cada teste custava segundos, e com a suíte inteira
+// rodando em paralelo o gancho estourava os 10 s. O banco já migrado é montado
+// UMA vez por arquivo de teste e cada teste parte de uma cópia dele, que o
+// PGlite carrega em centésimos de segundo.
+const instantaneos = new Map()
+
+function instantaneo(ate) {
+  const chave = ate ?? 'tudo'
+  if (!instantaneos.has(chave)) {
+    instantaneos.set(chave, (async () => {
+      const db = await new PGlite()
+      await db.exec(STUBS_DO_SUPABASE)
+      for (const nome of arquivosDeMigration()) {
+        if (ate && nome.slice(0, 4) > ate) break
+        await aplicarMigration(db, nome)
+      }
+      await concederComoOSupabase(db)
+      if (!ate) {
+        await db.query(
+          "insert into auth.users (id, email) values ($1, 'teste@mizuho.invalid')",
+          [USUARIO_TESTE],
+        )
+      }
+      const arquivo = await db.dumpDataDir('none')
+      await db.close()
+      return arquivo
+    })())
+  }
+  return instantaneos.get(chave)
+}
+
 export async function criarBanco({ ate } = {}) {
-  const db = await new PGlite()
-  await db.exec(STUBS_DO_SUPABASE)
-  for (const nome of arquivosDeMigration()) {
-    if (ate && nome.slice(0, 4) > ate) break
-    await aplicarMigration(db, nome)
-  }
-  await concederComoOSupabase(db)
-  if (!ate) {
-    await db.query(
-      "insert into auth.users (id, email) values ($1, 'teste@mizuho.invalid')",
-      [USUARIO_TESTE],
-    )
-  }
+  const db = await new PGlite({ loadDataDir: await instantaneo(ate) })
   return db
 }
 
