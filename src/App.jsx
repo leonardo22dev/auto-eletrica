@@ -5,6 +5,8 @@ import Configuracoes from './config/Configuracoes.jsx'
 import ListaOS from './os/ListaOS.jsx'
 import NovaOS from './os/NovaOS.jsx'
 import DetalheOS from './os/DetalheOS.jsx'
+import SomenteAdmin from './auth/SomenteAdmin.jsx'
+import PaginaUsuarios from './usuarios/PaginaUsuarios.jsx'
 
 export default function App() {
   return (
@@ -14,7 +16,14 @@ export default function App() {
         <Route path="os" element={<ListaOS />} />
         <Route path="os/nova" element={<NovaOS />} />
         <Route path="os/:id" element={<DetalheOS />} />
-        <Route path="configuracoes" element={<Configuracoes />} />
+        <Route
+          path="usuarios"
+          element={<SomenteAdmin><PaginaUsuarios /></SomenteAdmin>}
+        />
+        <Route
+          path="configuracoes"
+          element={<SomenteAdmin><Configuracoes /></SomenteAdmin>}
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

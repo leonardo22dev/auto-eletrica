@@ -3,7 +3,7 @@ import { useAuth } from './contexto.js'
 import { modoDemo } from '../data/supabase.js'
 
 export default function LoginScreen() {
-  const { entrar } = useAuth()
+  const { entrar, aviso } = useAuth()
   const [usuario, setUsuario] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
@@ -92,9 +92,9 @@ export default function LoginScreen() {
           </div>
         )}
 
-        {erro && (
+        {(erro || aviso) && (
           <p role="alert" className="rounded-lg bg-red/20 px-3 py-2 text-sm text-[#FFC9C2]">
-            {erro}
+            {erro || aviso}
           </p>
         )}
 

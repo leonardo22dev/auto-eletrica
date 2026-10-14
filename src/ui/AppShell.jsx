@@ -1,11 +1,14 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { House, FileText, Settings } from 'lucide-react'
+import { House, FileText, Settings, Users, LogOut } from 'lucide-react'
+import { useAuth } from '../auth/contexto.js'
+import { abasDoMenu, rotuloPapel } from '../auth/perfil.js'
 
-const ABAS = [
-  { para: '/', rotulo: 'Início', Icone: House, exata: true },
-  { para: '/os', rotulo: 'Histórico', Icone: FileText },
-  { para: '/configuracoes', rotulo: 'Ajustes', Icone: Settings },
-]
+const ICONES = {
+  inicio: House,
+  historico: FileText,
+  usuarios: Users,
+  ajustes: Settings,
+}
 
 function classeAba({ isActive }) {
   return [
@@ -22,6 +25,9 @@ function classeLateral({ isActive }) {
 }
 
 export default function AppShell() {
+  const { perfil, sair } = useAuth()
+  const abas = abasDoMenu(perfil)
+
   return (
     <div className="min-h-dvh md:flex">
       {/* Desktop: barra lateral */}
@@ -42,13 +48,31 @@ export default function AppShell() {
           </div>
         </div>
         <nav className="flex flex-col gap-1">
-          {ABAS.map(({ para, rotulo, Icone, exata }) => (
-            <NavLink key={para} to={para} end={exata} className={classeLateral}>
-              <Icone size={18} aria-hidden="true" />
-              {rotulo}
-            </NavLink>
-          ))}
+          {abas.map(({ id, para, rotulo, exata }) => {
+            const Icone = ICONES[id]
+            return (
+              <NavLink key={para} to={para} end={exata} className={classeLateral}>
+                <Icone size={18} aria-hidden="true" />
+                {rotulo}
+              </NavLink>
+            )
+          })}
         </nav>
+
+        <div className="mt-6 border-t border-white/10 px-1 pt-3">
+          <p className="truncate text-sm font-bold text-white">{perfil?.nome}</p>
+          <p className="text-[10px] tracking-[0.1em] text-[#9A9490] uppercase">
+            {rotuloPapel(perfil?.papel)}
+          </p>
+          <button
+            type="button"
+            onClick={sair}
+            className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#B5AFAB]"
+          >
+            <LogOut size={16} aria-hidden="true" />
+            Sair
+          </button>
+        </div>
       </aside>
 
       <div className="flex min-h-dvh flex-1 flex-col">
@@ -67,6 +91,24 @@ export default function AppShell() {
               Ordens de Serviço
             </span>
           </div>
+          <div className="ml-auto flex items-center gap-2">
+            <div className="text-right leading-tight">
+              <span className="block max-w-28 truncate text-[12px] font-bold text-white">
+                {perfil?.nome}
+              </span>
+              <span className="text-[9.5px] tracking-[0.1em] text-[#9A9490] uppercase">
+                {rotuloPapel(perfil?.papel)}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={sair}
+              aria-label="Sair"
+              className="grid h-11 w-11 place-items-center rounded-lg text-[#B5AFAB]"
+            >
+              <LogOut size={18} aria-hidden="true" />
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 pb-20 md:pb-0">
@@ -75,12 +117,15 @@ export default function AppShell() {
 
         {/* Celular: barra de abas no alcance do polegar */}
         <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-linha bg-paper pb-1.5 md:hidden">
-          {ABAS.map(({ para, rotulo, Icone, exata }) => (
-            <NavLink key={para} to={para} end={exata} className={classeAba}>
-              <Icone size={20} aria-hidden="true" />
-              {rotulo}
-            </NavLink>
-          ))}
+          {abas.map(({ id, para, rotulo, exata }) => {
+            const Icone = ICONES[id]
+            return (
+              <NavLink key={para} to={para} end={exata} className={classeAba}>
+                <Icone size={20} aria-hidden="true" />
+                {rotulo}
+              </NavLink>
+            )
+          })}
         </nav>
       </div>
     </div>

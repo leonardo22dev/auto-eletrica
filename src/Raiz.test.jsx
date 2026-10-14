@@ -15,6 +15,15 @@ vi.mock('./auth/AuthGate.jsx', () => ({
   default: ({ children }) => children,
 }))
 
+// A casca e as rotas de administrador leem o perfil de quem está logado.
+const estado = vi.hoisted(() => ({
+  perfil: { user_id: 'u1', usuario: 'dono', nome: 'Dono', papel: 'admin', ativo: true },
+}))
+vi.mock('./auth/contexto.js', () => ({
+  AuthCtx: {},
+  useAuth: () => ({ perfil: estado.perfil, sair: () => {} }),
+}))
+
 let Raiz
 
 beforeAll(async () => {
@@ -57,5 +66,37 @@ describe('Raiz — roteamento', () => {
     const html = pagina('/os/nova')
     expect(html).toContain('Itens')
     expect(html).toContain('Placa')
+  })
+
+  it('o administrador abre a aba Usuários em /usuarios', () => {
+    const html = pagina('/usuarios')
+    expect(html).toContain('Usuários')
+    expect(html).not.toContain('Nova OS')
+  })
+
+  // Em renderização no servidor o <Navigate> não executa o redirecionamento;
+  // o que se verifica é que a página protegida NÃO é entregue ao atendente.
+  it('o atendente que digita /usuarios não recebe a aba Usuários', () => {
+    const original = estado.perfil
+    estado.perfil = { ...original, papel: 'atendente' }
+    try {
+      expect(pagina('/usuarios')).not.toContain('Usuários')
+    } finally {
+      estado.perfil = original
+    }
+  })
+
+  it('o atendente que digita /configuracoes não recebe os Ajustes', () => {
+    const original = estado.perfil
+    estado.perfil = { ...original, papel: 'atendente' }
+    try {
+      const html = pagina('/configuracoes')
+      // A página de Ajustes, ainda sem dados, mostra "Carregando…": se ela
+      // fosse entregue ao atendente, este texto apareceria.
+      expect(html).not.toContain('Carregando')
+      expect(html).not.toContain('Ajustes')
+    } finally {
+      estado.perfil = original
+    }
   })
 })
