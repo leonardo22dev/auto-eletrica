@@ -96,7 +96,7 @@ export default function DocumentoOS({ dados, logoSrc }) {
           </View>
 
           <View style={s.colunaEmpresa}>
-            <Text style={s.razao}>{empresa.razaoSocial}</Text>
+            <Text style={[s.razao, { fontSize: empresa.tamanhoRazao }]}>{empresa.razaoSocial}</Text>
             {/* O bullet do talão é desenhado, não escrito: as fontes padrão
                 do PDF não têm o caractere e ele sairia em branco. */}
             {empresa.servicos.map((servico) => (

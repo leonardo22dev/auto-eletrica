@@ -32,6 +32,24 @@ export function textoImprimivel(valor) {
   return s
 }
 
+// A razão social divide a moldura do cabeçalho com o logo e o telefone. Em
+// fonte 21, o nome da Mizuho (34 caracteres) passava da coluna e o "- ME"
+// caía para a linha de baixo. O tamanho acompanha o comprimento: nomes curtos
+// ficam no tamanho cheio e os longos encolhem até caber numa linha só.
+const RAZAO_TAMANHO_MAXIMO = 21
+const RAZAO_TAMANHO_MINIMO = 11
+// Largura útil da coluna (pt) e largura média de um caractere em fonte
+// serifada em negrito, em fração do corpo — medidas no documento impresso.
+const RAZAO_LARGURA_COLUNA = 300
+const RAZAO_LARGURA_CARACTERE = 0.503
+
+export function tamanhoDaRazaoSocial(texto) {
+  const comprimento = String(texto ?? '').length
+  if (comprimento === 0) return RAZAO_TAMANHO_MAXIMO
+  const cabe = RAZAO_LARGURA_COLUNA / (comprimento * RAZAO_LARGURA_CARACTERE)
+  return Math.max(RAZAO_TAMANHO_MINIMO, Math.min(RAZAO_TAMANHO_MAXIMO, cabe))
+}
+
 function formatarQuantidade(valor) {
   const n = Number(valor) || 0
   return Number.isInteger(n) ? String(n) : String(n).replace('.', ',')
@@ -68,6 +86,7 @@ export function montarDadosDocumento(os, config) {
       telefone: textoImprimivel(config.telefone),
       email: textoImprimivel(config.email),
       servicos: (config.servicos_cabecalho || []).map(textoImprimivel),
+      tamanhoRazao: tamanhoDaRazaoSocial(textoImprimivel(config.razao_social)),
     },
     titulo: tituloDocumento(os.status),
     // O travessão do "sem número" também não imprime: no papel vira três

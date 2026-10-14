@@ -80,6 +80,21 @@ describe('DocumentoOS', () => {
     expect(texto).toContain('ALTERNADORES')
   })
 
+  // Cada linha do PDF vira um grupo de texto próprio. Se a razão social não
+  // couber na coluna, o "- ME" cai para a linha de baixo e o nome aparece
+  // partido em dois grupos — que é o que se via impresso.
+  it('imprime a razão social inteira numa linha só', async () => {
+    const linhas = textoDoPdf(await renderizar(OS)).split('\n')
+    expect(linhas).toContain('Auto Elétrica MIZUHO II Ltda. - ME')
+  })
+
+  it('mantém numa linha só uma razão social mais longa', async () => {
+    const longa = 'Auto Elétrica e Injeção Eletrônica MIZUHO II Ltda. - ME'
+    const linhas = textoDoPdf(
+      await renderizar(OS, { ...CONFIG, razao_social: longa })).split('\n')
+    expect(linhas).toContain(longa)
+  })
+
   it('imprime cliente, veículo, placa e data da OS', async () => {
     const texto = textoDoPdf(await renderizar(OS))
     expect(texto).toContain('João Silva')

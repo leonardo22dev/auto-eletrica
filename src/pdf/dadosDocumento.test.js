@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { montarDadosDocumento, LINHAS_DO_TALAO } from './dadosDocumento.js'
+import { montarDadosDocumento, LINHAS_DO_TALAO, tamanhoDaRazaoSocial } from './dadosDocumento.js'
 
 const CONFIG = {
   razao_social: 'Auto Elétrica MIZUHO II Ltda. - ME',
@@ -161,5 +161,40 @@ describe('montarDadosDocumento', () => {
     }, CONFIG)
     expect(d.linhas[0].descricao).toBe('Primeiro')
     expect(d.linhas[1].descricao).toBe('Segundo')
+  })
+})
+
+// A coluna da razão social divide a moldura com o logo e o telefone. Em fonte
+// 21 o nome da Mizuho (34 caracteres) não cabia, e o "- ME" caía para a linha
+// de baixo. O tamanho passa a depender do comprimento, para caber numa linha.
+describe('tamanhoDaRazaoSocial', () => {
+  it('reduz o nome da Mizuho abaixo de 21, onde ele quebrava', () => {
+    const t = tamanhoDaRazaoSocial('Auto Elétrica MIZUHO II Ltda. - ME')
+    expect(t).toBeLessThan(21)
+    expect(t).toBeGreaterThanOrEqual(16)
+  })
+
+  it('mantém o tamanho cheio quando o nome é curto', () => {
+    expect(tamanhoDaRazaoSocial('Mizuho Ltda')).toBe(21)
+  })
+
+  it('reduz mais quanto maior o nome', () => {
+    const a = tamanhoDaRazaoSocial('A'.repeat(40))
+    const b = tamanhoDaRazaoSocial('A'.repeat(60))
+    expect(b).toBeLessThan(a)
+  })
+
+  it('nunca desce abaixo do mínimo legível', () => {
+    expect(tamanhoDaRazaoSocial('A'.repeat(300))).toBe(11)
+  })
+
+  it('aguenta vazio e nulo', () => {
+    expect(tamanhoDaRazaoSocial('')).toBe(21)
+    expect(tamanhoDaRazaoSocial(null)).toBe(21)
+  })
+
+  it('o documento entrega o tamanho junto com a empresa', () => {
+    const d = montarDadosDocumento(OS, CONFIG)
+    expect(d.empresa.tamanhoRazao).toBe(tamanhoDaRazaoSocial(d.empresa.razaoSocial))
   })
 })
