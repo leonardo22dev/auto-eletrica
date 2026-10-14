@@ -59,6 +59,12 @@ describe('condicaoParaSql', () => {
     expect(params).toEqual(['%(11) 98888, x%'])
   })
 
+  it('traduz diferente de', () => {
+    const params = []
+    expect(condicaoParaSql('status.neq.cancelada', params)).toBe('status <> $1')
+    expect(params).toEqual(['cancelada'])
+  })
+
   it('desfaz o escape de aspas', () => {
     const params = []
     condicaoParaSql('nome.ilike."%Jo\\"ao%"', params)
@@ -108,6 +114,16 @@ describe('montarSelect', () => {
       ordens: [], limite: null,
     })
     expect(sql).toContain('where status = $1 and (numero = 5 or cliente_nome ilike $2)')
+  })
+
+  it('aplica o filtro de diferente', () => {
+    const { sql, params } = montarSelect({
+      tabela: 'ordens_servico', colunas: ['*'],
+      filtros: [{ tipo: 'neq', coluna: 'status', valor: 'cancelada' }],
+      ordens: [], limite: null,
+    })
+    expect(sql).toBe('select * from ordens_servico where status <> $1')
+    expect(params).toEqual(['cancelada'])
   })
 
   it('ordena e limita', () => {

@@ -36,26 +36,20 @@ async function criarBanco() {
   return db
 }
 
-async function semearClienteEVeiculo(db) {
-  const { rows: [cliente] } = await db.query(
-    `insert into clientes (nome, telefone) values ('Cliente Teste', '11988887777')
-     returning id`,
-  )
-  const { rows: [veiculo] } = await db.query(
-    `insert into veiculos (cliente_id, placa, marca, modelo)
-     values ($1, 'ABC1D23', 'GM', 'Chevette') returning id`,
-    [cliente.id],
-  )
-  return { clienteId: cliente.id, veiculoId: veiculo.id }
-}
-
-async function criarOS(db, { clienteId, veiculoId }) {
+async function criarOS(db, extra = {}) {
+  const campos = {
+    cliente_nome: 'Cliente Teste',
+    cliente_telefone: '(11) 98888-7777',
+    veiculo_descricao: 'GM Chevette 1982',
+    veiculo_placa: 'ABC1D23',
+    ...extra,
+  }
   const { rows: [os] } = await db.query(
-    `insert into ordens_servico (cliente_id, veiculo_id, cliente_nome,
-                                 veiculo_descricao, veiculo_placa)
-     values ($1, $2, 'Cliente Teste', 'GM Chevette', 'ABC1D23')
-     returning id, numero`,
-    [clienteId, veiculoId],
+    `insert into ordens_servico
+       (cliente_nome, cliente_telefone, veiculo_descricao, veiculo_placa)
+     values ($1, $2, $3, $4) returning id, numero, data_os`,
+    [campos.cliente_nome, campos.cliente_telefone,
+     campos.veiculo_descricao, campos.veiculo_placa],
   )
   return os
 }
@@ -77,11 +71,9 @@ async function totalDaOS(db, osId) {
 }
 
 let db
-let semente
 
 beforeEach(async () => {
   db = await criarBanco()
-  semente = await semearClienteEVeiculo(db)
 })
 
 describe('migrations', () => {
@@ -104,19 +96,19 @@ describe('migrations', () => {
 
 describe('trigger do total', () => {
   it('OS sem item nasce com total zero', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     expect(await totalDaOS(db, os.id)).toBe(0)
   })
 
   it('recalcula ao inserir itens', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     await adicionarItem(db, os.id, 1, 'Alternador', 38000)
     await adicionarItem(db, os.id, 2, 'Correia', 10000)
     expect(await totalDaOS(db, os.id)).toBe(48000)
   })
 
   it('recalcula ao remover item', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     await adicionarItem(db, os.id, 1, 'Alternador', 38000)
     await adicionarItem(db, os.id, 2, 'Correia', 10000)
     await db.query('delete from os_itens where os_id = $1 and posicao = 2', [os.id])
@@ -124,7 +116,7 @@ describe('trigger do total', () => {
   })
 
   it('volta a zero quando todos os itens saem', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     await adicionarItem(db, os.id, 1, 'Alternador', 38000)
     await db.query('delete from os_itens where os_id = $1', [os.id])
     expect(await totalDaOS(db, os.id)).toBe(0)
@@ -133,19 +125,19 @@ describe('trigger do total', () => {
 
 describe('numeração', () => {
   it('é sequencial', async () => {
-    const a = await criarOS(db, semente)
-    const b = await criarOS(db, semente)
+    const a = await criarOS(db)
+    const b = await criarOS(db)
     expect(Number(b.numero)).toBe(Number(a.numero) + 1)
   })
 
   it('definir_proximo_numero manda a próxima OS para o número escolhido', async () => {
     await db.query('select definir_proximo_numero($1)', [1042])
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     expect(Number(os.numero)).toBe(1042)
   })
 
   it('definir_proximo_numero recusa número já usado', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     await expect(
       db.query('select definir_proximo_numero($1)', [Number(os.numero)]),
     ).rejects.toThrow(/Ja existe OS com numero maior ou igual/)
@@ -154,8 +146,8 @@ describe('numeração', () => {
 
 describe('cancelar_os', () => {
   it('devolve o número quando a OS cancelada é a última', async () => {
-    const a = await criarOS(db, semente)
-    const b = await criarOS(db, semente)
+    const a = await criarOS(db)
+    const b = await criarOS(db)
 
     const { rows } = await db.query('select cancelar_os($1) as devolveu', [b.id])
     expect(rows[0].devolveu).toBe(true)
@@ -167,14 +159,14 @@ describe('cancelar_os', () => {
     expect(depois[0].status).toBe('cancelada')
 
     // A próxima OS nasce com o número devolvido.
-    const c = await criarOS(db, semente)
+    const c = await criarOS(db)
     expect(Number(c.numero)).toBe(Number(b.numero))
     expect(Number(c.numero)).toBe(Number(a.numero) + 1)
   })
 
   it('não devolve nada ao cancelar uma OS antiga, que mantém o número', async () => {
-    const a = await criarOS(db, semente)
-    await criarOS(db, semente)
+    const a = await criarOS(db)
+    await criarOS(db)
 
     const { rows } = await db.query('select cancelar_os($1) as devolveu', [a.id])
     expect(rows[0].devolveu).toBe(false)
@@ -187,7 +179,7 @@ describe('cancelar_os', () => {
   })
 
   it('cancelar duas vezes não devolve número de novo', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     const primeira = await db.query('select cancelar_os($1) as devolveu', [os.id])
     expect(primeira.rows[0].devolveu).toBe(true)
     const segunda = await db.query('select cancelar_os($1) as devolveu', [os.id])
@@ -196,25 +188,25 @@ describe('cancelar_os', () => {
 
   // Dois cancelamentos seguidos é onde esse tipo de lógica costuma quebrar.
   it('devolve duas vezes seguidas quando se cancela a ponta duas vezes', async () => {
-    const a = await criarOS(db, semente)
-    const b = await criarOS(db, semente)
-    const c = await criarOS(db, semente)
+    const a = await criarOS(db)
+    const b = await criarOS(db)
+    const c = await criarOS(db)
 
     expect((await db.query('select cancelar_os($1) as d', [c.id])).rows[0].d).toBe(true)
     expect((await db.query('select cancelar_os($1) as d', [b.id])).rows[0].d).toBe(true)
 
-    const nova = await criarOS(db, semente)
+    const nova = await criarOS(db)
     expect(Number(nova.numero)).toBe(Number(a.numero) + 1)
   })
 
   it('cancelar a primeiríssima OS deixa a numeração recomeçar do 1', async () => {
-    const primeira = await criarOS(db, semente)
+    const primeira = await criarOS(db)
     expect(Number(primeira.numero)).toBe(1)
 
     const { rows } = await db.query('select cancelar_os($1) as d', [primeira.id])
     expect(rows[0].d).toBe(true)
 
-    const nova = await criarOS(db, semente)
+    const nova = await criarOS(db)
     expect(Number(nova.numero)).toBe(1)
   })
 
@@ -227,7 +219,7 @@ describe('cancelar_os', () => {
 
 describe('substituir_itens', () => {
   it('troca o conjunto de itens e recalcula o total', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     await adicionarItem(db, os.id, 1, 'Alternador', 38000)
     await db.query('select substituir_itens($1, $2::jsonb)', [
       os.id,
@@ -245,7 +237,7 @@ describe('substituir_itens', () => {
   })
 
   it('aceita lista vazia, zerando a OS', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     await adicionarItem(db, os.id, 1, 'Alternador', 38000)
     await db.query("select substituir_itens($1, '[]'::jsonb)", [os.id])
     expect(await totalDaOS(db, os.id)).toBe(0)
@@ -255,7 +247,7 @@ describe('substituir_itens', () => {
   // transações. Se a inserção falhasse depois do delete, a OS ficava sem
   // nenhum item e com total zero — documento emitido destruído.
   it('não perde os itens antigos quando os novos são recusados', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     await adicionarItem(db, os.id, 1, 'Alternador', 38000)
 
     await expect(
@@ -282,7 +274,7 @@ describe('substituir_itens', () => {
   })
 })
 
-describe('data de abertura', () => {
+describe('data da OS', () => {
   // O Supabase roda com TimeZone = UTC. Com `current_date`, uma OS aberta às
   // 21h30 de 12/08 em São Paulo nasceria datada de 13/08 e o documento sairia
   // com a data errada.
@@ -294,7 +286,7 @@ describe('data de abertura', () => {
       select pg_get_expr(d.adbin, d.adrelid) as expressao
         from pg_attrdef d
         join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
-       where d.adrelid = 'ordens_servico'::regclass and a.attname = 'data_abertura'`)
+       where d.adrelid = 'ordens_servico'::regclass and a.attname = 'data_os'`)
     expect(rows[0].expressao).toContain('America/Sao_Paulo')
     expect(rows[0].expressao).not.toContain('CURRENT_DATE')
   })
@@ -303,37 +295,44 @@ describe('data de abertura', () => {
     await db.exec("set time zone 'UTC'")
     const { rows: [agora] } = await db.query(
       "select to_char((now() at time zone 'America/Sao_Paulo')::date, 'YYYY-MM-DD') as em_sp")
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     const { rows } = await db.query(
-      "select to_char(data_abertura, 'YYYY-MM-DD') as d from ordens_servico where id = $1",
+      "select to_char(data_os, 'YYYY-MM-DD') as d from ordens_servico where id = $1",
       [os.id])
     expect(rows[0].d).toBe(agora.em_sp)
   })
 })
 
-describe('integridade dos cadastros', () => {
+describe('OS autossuficiente', () => {
+  it('não existe mais tabela de cliente nem de veículo', async () => {
+    await expect(db.query('select 1 from clientes')).rejects.toThrow()
+    await expect(db.query('select 1 from veiculos')).rejects.toThrow()
+  })
+
+  it('cria OS sem nenhum cadastro por trás', async () => {
+    const os = await criarOS(db)
+    expect(os.numero).toBeTruthy()
+    const { rows } = await db.query(
+      'select cliente_nome, veiculo_placa from ordens_servico where id = $1', [os.id])
+    expect(rows[0].cliente_nome).toBe('Cliente Teste')
+    expect(rows[0].veiculo_placa).toBe('ABC1D23')
+  })
+
+  // Review Focus 5: segunda barreira, depois da validação no app.
+  it('recusa nome em branco', async () => {
+    await expect(criarOS(db, { cliente_nome: '   ' })).rejects.toThrow()
+  })
+
+  it('recusa veículo em branco', async () => {
+    await expect(criarOS(db, { veiculo_descricao: '' })).rejects.toThrow()
+  })
+
   it('recusa placa fora do formato normalizado', async () => {
-    await expect(
-      db.query('insert into veiculos (cliente_id, placa) values ($1, $2)',
-        [semente.clienteId, 'abc-1234']),
-    ).rejects.toThrow()
-  })
-
-  it('não deixa apagar cliente que tem veículo', async () => {
-    await expect(
-      db.query('delete from clientes where id = $1', [semente.clienteId]),
-    ).rejects.toThrow()
-  })
-
-  it('não deixa apagar veículo que tem OS', async () => {
-    await criarOS(db, semente)
-    await expect(
-      db.query('delete from veiculos where id = $1', [semente.veiculoId]),
-    ).rejects.toThrow()
+    await expect(criarOS(db, { veiculo_placa: 'abc-1234' })).rejects.toThrow()
   })
 
   it('apagar a OS leva os itens junto', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     await adicionarItem(db, os.id, 1, 'Alternador', 38000)
     await db.query('delete from ordens_servico where id = $1', [os.id])
     const { rows } = await db.query('select count(*)::int as n from os_itens')
@@ -341,7 +340,7 @@ describe('integridade dos cadastros', () => {
   })
 
   it('recusa item com quantidade zero ou valor negativo', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     await expect(
       db.query(
         `insert into os_itens (os_id, posicao, quantidade, descricao,
@@ -357,14 +356,14 @@ describe('integridade dos cadastros', () => {
   })
 
   it('recusa status fora do ciclo', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     await expect(
       db.query("update ordens_servico set status = 'inventado' where id = $1", [os.id]),
     ).rejects.toThrow()
   })
 
   it('carimba atualizado_em ao alterar a OS', async () => {
-    const os = await criarOS(db, semente)
+    const os = await criarOS(db)
     const { rows: antes } = await db.query(
       'select atualizado_em from ordens_servico where id = $1', [os.id])
     await db.query(

@@ -47,7 +47,7 @@ export function separarSelect(texto) {
 // Traduz uma condição do formato `coluna.operador.valor`, onde o valor pode
 // vir entre aspas justamente para conter vírgula e parêntese.
 export function condicaoParaSql(condicao, params) {
-  const m = String(condicao).match(/^([\w]+)\.(eq|ilike|is|gte|lte)\.(.*)$/s)
+  const m = String(condicao).match(/^([\w]+)\.(eq|neq|ilike|is|gte|lte)\.(.*)$/s)
   if (!m) throw new Error(`Condição não suportada no modo demonstração: ${condicao}`)
 
   const [, coluna, operador, bruto] = m
@@ -71,7 +71,7 @@ export function condicaoParaSql(condicao, params) {
   }
 
   params.push(valor)
-  const simbolo = { eq: '=', gte: '>=', lte: '<=' }[operador]
+  const simbolo = { eq: '=', neq: '<>', gte: '>=', lte: '<=' }[operador]
   return `${coluna} ${simbolo} $${params.length}`
 }
 
@@ -83,6 +83,10 @@ function clausulaOnde(filtros, params) {
         .join(' or ')
       // Entre parênteses para não vazar sobre os filtros vizinhos.
       return `(${dentro})`
+    }
+    if (f.tipo === 'neq') {
+      params.push(f.valor)
+      return `${f.coluna} <> $${params.length}`
     }
     if (f.tipo === 'ilike') {
       params.push(f.valor)

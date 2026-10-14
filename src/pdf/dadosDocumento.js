@@ -73,7 +73,7 @@ export function montarDadosDocumento(os, config) {
     // O travessão do "sem número" também não imprime: no papel vira três
     // hifens, que é como o talão marcava campo não preenchido.
     numero: os.numero == null ? '---' : String(os.numero),
-    data: dataPorExtenso(os.data_conclusao || os.data_abertura),
+    data: dataPorExtenso(os.data_os),
     cliente: {
       nome: textoImprimivel(os.cliente_nome),
       telefone: textoImprimivel(os.cliente_telefone || ''),

@@ -21,8 +21,7 @@ const OS = {
   cliente_telefone: '(11) 98888-7777',
   veiculo_descricao: 'GM Chevette 1982 — Bege',
   veiculo_placa: 'ABC1234',
-  data_abertura: '2026-08-10',
-  data_conclusao: '2026-08-12',
+  data_os: '2026-08-12',
   total_centavos: 48000,
   itens: [
     { posicao: 1, quantidade: 1, descricao: 'Alternador',
@@ -41,14 +40,9 @@ describe('montarDadosDocumento', () => {
     expect(d.textoGarantia).toBe('GARANTIA DE 3 (TRÊS) MESES PARA PEÇAS COM DEFEITO')
   })
 
-  it('usa a data de conclusão e não desloca o dia', () => {
+  it('imprime a data da OS, sem deslocar o dia', () => {
     const d = montarDadosDocumento(OS, CONFIG)
     expect(d.data).toEqual({ dia: '12', mes: 'agosto', ano: '2026' })
-  })
-
-  it('cai na data de abertura quando não há conclusão', () => {
-    const d = montarDadosDocumento({ ...OS, data_conclusao: null }, CONFIG)
-    expect(d.data).toEqual({ dia: '10', mes: 'agosto', ano: '2026' })
   })
 
   it('imprime como orçamento enquanto for orçamento', () => {

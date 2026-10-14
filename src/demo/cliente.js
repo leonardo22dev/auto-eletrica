@@ -42,6 +42,7 @@ class Consulta {
   delete() { this.operacao = 'delete'; return this }
 
   eq(coluna, valor) { this.filtros.push({ tipo: 'eq', coluna, valor }); return this }
+  neq(coluna, valor) { this.filtros.push({ tipo: 'neq', coluna, valor }); return this }
   ilike(coluna, valor) { this.filtros.push({ tipo: 'ilike', coluna, valor }); return this }
   or(expressao) { this.filtros.push({ tipo: 'or', expressao }); return this }
 

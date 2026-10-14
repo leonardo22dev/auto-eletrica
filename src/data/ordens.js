@@ -2,15 +2,13 @@ import { supabase } from './supabase.js'
 import { condicaoIlike } from './filtros.js'
 import { STATUS, podeTransicionar } from '../lib/status.js'
 import { normalizarPlaca } from '../lib/placa.js'
-import { hojeISO } from '../lib/datas.js'
 import { validarItens } from '../os/validarItens.js'
+import { validarDadosDaOs } from '../os/dadosOs.js'
 
 const CAMPOS_LISTA =
-  'id, numero, status, cliente_nome, veiculo_placa, veiculo_descricao, ' +
-  'data_abertura, data_conclusao, total_centavos'
+  'id, numero, status, cliente_nome, cliente_telefone, veiculo_placa, ' +
+  'veiculo_descricao, data_os, total_centavos'
 
-// A ficha do veículo precisa responder "o que já foi feito nesse carro",
-// então a listagem traz também a primeira linha de cada OS.
 const CAMPOS_LISTA_COM_ITEM = `${CAMPOS_LISTA}, itens:os_itens(posicao, descricao)`
 
 export function servicoPrincipal(os) {
@@ -18,24 +16,19 @@ export function servicoPrincipal(os) {
   if (itens.length === 0) return ''
   const primeiro = itens.slice().sort((a, b) => a.posicao - b.posicao)[0]
   const extras = itens.length - 1
-  return extras > 0
-    ? `${primeiro.descricao} (+${extras})`
-    : primeiro.descricao
+  return extras > 0 ? `${primeiro.descricao} (+${extras})` : primeiro.descricao
 }
 
 export async function listarOrdens({
-  termo = '', status = '', veiculoId = '', clienteId = '',
-  limite = 100, comItens = false,
+  termo = '', status = '', emAberto = false, limite = 100, comItens = false,
 } = {}) {
   let q = supabase.from('ordens_servico')
     .select(comItens ? CAMPOS_LISTA_COM_ITEM : CAMPOS_LISTA)
-    .order('data_abertura', { ascending: false })
+    .order('data_os', { ascending: false })
     .order('numero', { ascending: false, nullsFirst: false })
     .limit(limite)
 
   if (status) q = q.eq('status', status)
-  if (veiculoId) q = q.eq('veiculo_id', veiculoId)
-  if (clienteId) q = q.eq('cliente_id', clienteId)
 
   const t = termo.trim()
   if (t) {
@@ -49,53 +42,70 @@ export async function listarOrdens({
 
   const { data, error } = await q
   if (error) throw new Error('Não foi possível listar as ordens de serviço.')
+
+  // Orçamento e aprovada são o que está pendurado. Filtrado aqui porque o
+  // `or` já está ocupado pela busca e os dois não se combinam no PostgREST.
+  if (emAberto) {
+    return data.filter(
+      (o) => o.status === STATUS.ORCAMENTO || o.status === STATUS.APROVADA)
+  }
   return data
 }
 
 export async function buscarOrdem(id) {
   const { data, error } = await supabase
-    .from('ordens_servico')
-    .select('*, itens:os_itens(*)')
-    .eq('id', id).single()
+    .from('ordens_servico').select('*, itens:os_itens(*)').eq('id', id).single()
   if (error) throw new Error('Ordem de serviço não encontrada.')
   data.itens.sort((a, b) => a.posicao - b.posicao)
   return data
 }
 
-export async function ultimaOrdemDoVeiculo(veiculoId) {
+// Sem cadastro, a memória do sistema são as próprias OS. Esta consulta é o
+// que faz a placa continuar sendo um atalho: devolve o que foi digitado da
+// última vez naquele carro, para a tela oferecer.
+export async function ultimaOsDaPlaca(placa) {
+  const p = normalizarPlaca(placa)
+  if (!p) return null
   const { data, error } = await supabase
     .from('ordens_servico')
-    .select(CAMPOS_LISTA_COM_ITEM)
-    .eq('veiculo_id', veiculoId)
-    .eq('status', STATUS.FINALIZADA)
-    .order('data_conclusao', { ascending: false, nullsFirst: false })
+    .select('numero, data_os, cliente_nome, cliente_telefone, veiculo_descricao, veiculo_placa')
+    .eq('veiculo_placa', p)
+    // OS cancelada foi abandonada; sugerir o que ela tinha seria propagar erro.
+    .neq('status', STATUS.CANCELADA)
+    .order('data_os', { ascending: false })
+    .order('numero', { ascending: false, nullsFirst: false })
     .limit(1).maybeSingle()
-  if (error) throw new Error('Não foi possível consultar o histórico do veículo.')
+  if (error) throw new Error('Não foi possível consultar o histórico da placa.')
   return data
 }
 
-// `veiculo.descricao` que chega aqui vem de descricaoVeiculo(veiculo), em
-// src/data/veiculos.js — é a string que fica congelada e vai impressa no PDF.
-export async function criarOrdem({ cliente, veiculo, itens = [],
+export async function ultimaOsFinalizadaDaPlaca(placa) {
+  const p = normalizarPlaca(placa)
+  if (!p) return null
+  const { data, error } = await supabase
+    .from('ordens_servico')
+    .select(CAMPOS_LISTA_COM_ITEM)
+    .eq('veiculo_placa', p)
+    .eq('status', STATUS.FINALIZADA)
+    .order('data_os', { ascending: false })
+    .limit(1).maybeSingle()
+  if (error) throw new Error('Não foi possível consultar a garantia da placa.')
+  return data
+}
+
+export async function criarOrdem({ dados, itens = [],
                                    status = STATUS.ORCAMENTO, observacoes = '' }) {
+  const campos = validarDadosDaOs(dados)
+  if (campos.erro) throw new Error(campos.erro)
   const { erro, itens: linhas } = validarItens(itens)
   if (erro) throw new Error(erro)
 
   const { data: sessao } = await supabase.auth.getSession()
-  const agora = new Date().toISOString()
-
-  // data_abertura fica a cargo do default da tabela, que é ancorado no fuso
-  // de São Paulo — uma única fonte de "hoje" para a OS.
   const { data: os, error } = await supabase.from('ordens_servico').insert({
+    ...campos.dados,
     status,
-    cliente_id: cliente.id,
-    veiculo_id: veiculo.id,
-    cliente_nome: cliente.nome,
-    cliente_telefone: cliente.telefone,
-    veiculo_descricao: veiculo.descricao,
-    veiculo_placa: normalizarPlaca(veiculo.placa),
     observacoes: observacoes || null,
-    data_aprovacao: status === STATUS.ORCAMENTO ? null : agora,
+    data_aprovacao: status === STATUS.ORCAMENTO ? null : new Date().toISOString(),
     criado_por: sessao?.session?.user?.id ?? null,
   }).select().single()
   if (error) throw new Error('Não foi possível criar a ordem de serviço.')
@@ -104,13 +114,21 @@ export async function criarOrdem({ cliente, veiculo, itens = [],
   return buscarOrdem(os.id)
 }
 
+export async function atualizarDadosDaOs(osId, dados) {
+  const campos = validarDadosDaOs(dados)
+  if (campos.erro) throw new Error(campos.erro)
+  const { error } = await supabase
+    .from('ordens_servico').update(campos.dados).eq('id', osId)
+  if (error) throw new Error('Não foi possível salvar os dados da OS.')
+  return buscarOrdem(osId)
+}
+
 // Troca o conjunto de itens numa transação só, no banco. Em duas requisições
 // separadas, uma falha depois do delete deixava a OS sem item nenhum e com
 // total zero — documento emitido destruído sem cópia.
 async function substituirItens(osId, linhas) {
   const { error } = await supabase.rpc('substituir_itens', {
-    p_os_id: osId,
-    p_itens: linhas,
+    p_os_id: osId, p_itens: linhas,
   })
   if (error) throw new Error('Não foi possível salvar os itens.')
 }
@@ -133,10 +151,7 @@ export async function mudarStatus(osId, novoStatus) {
 
   const campos = { status: novoStatus }
   if (novoStatus === STATUS.APROVADA) campos.data_aprovacao = new Date().toISOString()
-  if (novoStatus === STATUS.FINALIZADA) {
-    if (!atual.data_conclusao) campos.data_conclusao = hojeISO()
-    campos.finalizada_em = new Date().toISOString()
-  }
+  if (novoStatus === STATUS.FINALIZADA) campos.finalizada_em = new Date().toISOString()
 
   const { error } = await supabase
     .from('ordens_servico').update(campos).eq('id', osId)

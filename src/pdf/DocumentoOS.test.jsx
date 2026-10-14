@@ -17,8 +17,7 @@ const CONFIG = {
 const OS = {
   numero: 1042, status: 'finalizada', cliente_nome: 'João Silva',
   cliente_telefone: '(11) 98888-7777', veiculo_descricao: 'GM Chevette 1982',
-  veiculo_placa: 'ABC1234', data_abertura: '2026-08-10',
-  data_conclusao: '2026-08-12', total_centavos: 48000,
+  veiculo_placa: 'ABC1234', data_os: '2026-08-12', total_centavos: 48000,
   itens: [{ posicao: 1, quantidade: 1, descricao: 'Alternador',
             valor_unitario_centavos: 48000, valor_total_centavos: 48000 }],
 }
