@@ -1,10 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { House, FileText, Users, Settings } from 'lucide-react'
+import { House, FileText, Settings } from 'lucide-react'
 
 const ABAS = [
   { para: '/', rotulo: 'Início', Icone: House, exata: true },
-  { para: '/os', rotulo: 'OS', Icone: FileText },
-  { para: '/clientes', rotulo: 'Clientes', Icone: Users },
+  { para: '/os', rotulo: 'Histórico', Icone: FileText },
   { para: '/configuracoes', rotulo: 'Ajustes', Icone: Settings },
 ]
 

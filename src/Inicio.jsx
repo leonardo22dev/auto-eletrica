@@ -33,23 +33,24 @@ export default function Inicio() {
   const buscar = useCallback(
     () =>
       Promise.all([
-        listarOrdens({ status: STATUS.APROVADA, limite: 200 }),
         listarOrdens({ status: STATUS.ORCAMENTO, limite: 200 }),
         listarOrdens({ status: STATUS.FINALIZADA, limite: 500 }),
-        listarOrdens({ limite: 8 }),
+        listarOrdens({ emAberto: true, limite: 20 }),
       ])
-        .then(([aprovadas, orcamentos, finalizadas, recentes]) => {
+        .then(([orcamentos, finalizadas, pendentes]) => {
           const inicioDoMes = `${hojeISO().slice(0, 8)}01`
           const faturado = somarCentavos(
             finalizadas
-              .filter((o) => o.data_conclusao && o.data_conclusao >= inicioDoMes)
+              .filter((o) => o.data_os && o.data_os >= inicioDoMes)
               .map((o) => o.total_centavos),
           )
           setDados({
-            emAberto: aprovadas.length,
+            // A lista do que está pendurado já traz orçamentos e aprovadas:
+            // os dois números saem dela, sem uma consulta a mais.
+            emAberto: pendentes.length,
             orcamentos: orcamentos.length,
             faturado,
-            recentes,
+            pendentes,
           })
           setErro('')
         })
@@ -78,18 +79,18 @@ export default function Inicio() {
           </div>
 
           <h2 className="mb-2 text-[9.5px] font-bold tracking-[0.14em] text-mute uppercase">
-            Recentes
+            Em aberto
           </h2>
 
-          {dados.recentes.length === 0 ? (
+          {dados.pendentes.length === 0 ? (
             <EstadoVazio
-              titulo="Nenhuma OS ainda"
-              descricao="A primeira OS começa pela placa do veículo."
-              acao={<Botao onClick={() => navegar('/os/nova')}>Abrir a primeira</Botao>}
+              titulo="Nada em aberto"
+              descricao="Todo orçamento foi respondido e todo serviço foi concluído."
+              acao={<Botao onClick={() => navegar('/os/nova')}>Nova OS</Botao>}
             />
           ) : (
             <ul>
-              {dados.recentes.map((o) => (
+              {dados.pendentes.map((o) => (
                 <li key={o.id}>
                   <LinhaOS os={o} aoClicar={() => navegar(`/os/${o.id}`)} />
                 </li>

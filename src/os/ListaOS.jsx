@@ -32,7 +32,7 @@ export function LinhaOS({ os, aoClicar }) {
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-bold">{os.cliente_nome}</span>
         <span className="text-[11px] text-mute">
-          {formatarData(os.data_abertura)} · {formatarPlaca(os.veiculo_placa)}
+          {formatarData(os.data_os)} · {formatarPlaca(os.veiculo_placa)}
         </span>
       </span>
       <span className="shrink-0 text-right">
@@ -68,7 +68,7 @@ export default function ListaOS() {
   return (
     <div className="mx-auto max-w-2xl p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-extrabold tracking-tight">Ordens de Serviço</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">Histórico</h1>
         <Botao className="w-auto" onClick={() => navegar('/os/nova')}>
           <Plus size={18} aria-hidden="true" /> Nova
         </Botao>
