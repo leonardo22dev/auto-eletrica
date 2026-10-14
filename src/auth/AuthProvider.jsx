@@ -3,6 +3,7 @@ import { supabase } from '../data/supabase.js'
 import { buscarPerfil } from '../data/usuarios.js'
 import { AuthCtx } from './contexto.js'
 import { usuarioParaEmail } from './usuario.js'
+import { derivarAcesso, lidoAposSessao } from './estadoAuth.js'
 
 const AVISO_BLOQUEADO = 'Acesso bloqueado. Fale com o administrador.'
 
@@ -22,6 +23,7 @@ export function AuthProvider({ children }) {
     })
     const { data: sub } = supabase.auth.onAuthStateChange((_evento, nova) => {
       setSessao(nova)
+      setLido((anterior) => lidoAposSessao(anterior, nova))
     })
     return () => sub.subscription.unsubscribe()
   }, [])
@@ -51,10 +53,7 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('focus', aoVoltar)
   }, [])
 
-  const doUsuario = sessao && lido?.id === idDoUsuario ? lido : null
-  const perfilLido = doUsuario ? doUsuario.perfil : undefined // undefined: ainda lendo
-  const perfil = perfilLido && perfilLido.ativo ? perfilLido : null
-  const semAcesso = perfilLido !== undefined && !perfil // lido, e não pode entrar
+  const { perfil, semAcesso, falhouAoLer, lendo } = derivarAcesso({ sessao, lido })
 
   // Sem perfil ou bloqueado: encerra a sessão e deixa um aviso para a tela de login.
   useEffect(() => {
@@ -79,9 +78,7 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
-  const falhouAoLer = Boolean(sessao) && perfilLido === undefined && Boolean(doUsuario?.erro)
-  const carregando = carregandoSessao
-    || (Boolean(sessao) && perfilLido === undefined && !falhouAoLer)
+  const carregando = carregandoSessao || lendo
 
   const valor = {
     sessao,

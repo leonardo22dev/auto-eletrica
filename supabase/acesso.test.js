@@ -73,7 +73,7 @@ describe('OS: só usuário ativo', () => {
     const lido = await comoUsuario(SEM_PERFIL, () => db.query('select id from ordens_servico'))
     expect(lido.rows).toHaveLength(0)
     await expect(comoUsuario(SEM_PERFIL, () => db.query(NOVA_OS)))
-      .rejects.toThrow(/row-level security/)
+      .rejects.toThrow(/acesso_negado/)
   })
 
   it('usuário bloqueado não lê nem altera OS', async () => {
@@ -111,10 +111,10 @@ describe('funções: usuário bloqueado e atendente', () => {
     expect(r.rows[0].r.codigo).toHaveLength(64)
   })
 
-  it('bloqueado não cancela OS: ela não existe para ele', async () => {
+  it('bloqueado não cancela OS', async () => {
     const os = await criarOS(db)
     await expect(comoUsuario(BLOQUEADO, () =>
-      db.query('select cancelar_os($1)', [os.id]))).rejects.toThrow(/nao encontrada/)
+      db.query('select cancelar_os($1)', [os.id]))).rejects.toThrow(/acesso_negado/)
     const { rows: [o] } = await db.query(
       'select status from ordens_servico where id = $1', [os.id])
     expect(o.status).toBe('orcamento')

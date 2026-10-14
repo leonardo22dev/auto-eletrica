@@ -217,3 +217,109 @@ end $$;
 alter table ordens_servico drop constraint ordens_servico_criado_por_fkey;
 alter table ordens_servico add constraint ordens_servico_criado_por_fkey
   foreign key (criado_por) references auth.users(id) on delete set null;
+
+-- ---------------------------------------------------------------------------
+-- 6. Campos que so o sistema escreve, e quem nao pode criar OS nao gasta numero
+--
+-- A policy os_upd libera qualquer coluna a usuario ativo, e o historico so
+-- registra uma lista de campos. Sem esta trava, quem chamasse a API direto
+-- trocava o total (que vai para o PDF e o WhatsApp) ou o numero da OS sem
+-- deixar rastro, e travava a numeracao do administrador com um numero alto.
+--
+-- A decisao e pelo PAPEL de quem escreve (como em proteger_aceite): as funcoes
+-- do sistema rodam como dono e passam; a escrita direta pela API e
+-- authenticated ou anon. Funcao invoker, de proposito: current_user precisa ser
+-- o de quem chamou.
+--
+-- O nome faz o gatilho disparar ANTES do da numeracao (ordens_atribui_numero):
+-- assim o numero ainda nao foi atribuido (nao da para distinguir o do cliente
+-- do do sistema depois) e a sequencia nao anda para quem sera recusado. O RLS
+-- so confere o WITH CHECK depois dos gatilhos BEFORE, e por isso o nextval
+-- rodava mesmo para o insert que o RLS recusaria.
+-- ---------------------------------------------------------------------------
+create or replace function proteger_campos_da_os() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+declare
+  externo boolean := current_user in ('anon', 'authenticated', 'authenticator');
+begin
+  if not externo then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    -- Dois ifs, e nao um `or`: o Postgres nao garante a ordem de avaliacao, e
+    -- anon nem tem permissao de executar usuario_ativo().
+    if current_user = 'anon' then
+      raise exception 'acesso_negado';
+    end if;
+    if not usuario_ativo() then
+      raise exception 'acesso_negado';
+    end if;
+    if new.numero is not null
+       or new.total_centavos <> 0
+       or (new.criado_por is not null and new.criado_por is distinct from auth.uid()) then
+      raise exception 'campo_protegido: numero, total e autor so mudam pelo sistema';
+    end if;
+    return new;
+  end if;
+
+  if (new.numero, new.total_centavos, new.criado_por)
+     is distinct from (old.numero, old.total_centavos, old.criado_por) then
+    raise exception 'campo_protegido: numero, total e autor so mudam pelo sistema';
+  end if;
+  return new;
+end $$;
+
+create trigger ordens_a_protege_campos
+before insert or update on ordens_servico
+for each row execute function proteger_campos_da_os();
+
+revoke execute on function proteger_campos_da_os() from public, anon, authenticated;
+
+-- Cancelar devolve o numero a fila, e isso e uma escrita em `numero`: passa a
+-- rodar como dono (security definer) e a conferir o usuario por conta propria.
+-- Antes era security invoker e dependia do RLS para recusar o bloqueado.
+create or replace function cancelar_os(p_os_id uuid) returns boolean
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_numero bigint;
+  v_status text;
+  v_seq    bigint;
+begin
+  if not usuario_ativo() then
+    raise exception 'acesso_negado';
+  end if;
+
+  -- Mesma chave do gatilho de numeracao: cancelamento e emissao nao correm
+  -- juntos.
+  perform pg_advisory_xact_lock(hashtext('os_numero_seq'));
+
+  select numero, status into v_numero, v_status
+    from ordens_servico where id = p_os_id for update;
+
+  if not found then
+    raise exception 'OS % nao encontrada', p_os_id;
+  end if;
+  if v_status = 'cancelada' then
+    return false;
+  end if;
+
+  update ordens_servico set status = 'cancelada' where id = p_os_id;
+
+  v_seq := pg_sequence_last_value('os_numero_seq'::regclass);
+
+  if v_numero is not null
+     and v_seq = v_numero
+     and not exists (select 1 from ordens_servico
+                      where numero is not null and numero > v_numero) then
+    update ordens_servico set numero = null where id = p_os_id;
+    if v_numero <= 1 then
+      perform setval('os_numero_seq', 1, false);
+    else
+      perform setval('os_numero_seq', v_numero - 1, true);
+    end if;
+    return true;
+  end if;
+
+  return false;
+end $$;
