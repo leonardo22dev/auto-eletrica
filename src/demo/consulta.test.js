@@ -126,6 +126,28 @@ describe('montarSelect', () => {
     expect(params).toEqual(['cancelada'])
   })
 
+  it('aplica o filtro de pertence a um conjunto', () => {
+    const { sql, params } = montarSelect({
+      tabela: 'ordens_servico', colunas: ['*'],
+      filtros: [{ tipo: 'in', coluna: 'status', valor: ['orcamento', 'aprovada'] }],
+      ordens: [], limite: null,
+    })
+    expect(sql).toBe('select * from ordens_servico where status in ($1, $2)')
+    expect(params).toEqual(['orcamento', 'aprovada'])
+  })
+
+  it('combina o conjunto com os demais filtros por and', () => {
+    const { sql } = montarSelect({
+      tabela: 'ordens_servico', colunas: ['*'],
+      filtros: [
+        { tipo: 'in', coluna: 'status', valor: ['orcamento', 'aprovada'] },
+        { tipo: 'or', expressao: 'numero.eq.5' },
+      ],
+      ordens: [], limite: null,
+    })
+    expect(sql).toContain('where status in ($1, $2) and (numero = 5)')
+  })
+
   it('ordena e limita', () => {
     const { sql } = montarSelect({
       tabela: 'ordens_servico', colunas: ['*'], filtros: [],

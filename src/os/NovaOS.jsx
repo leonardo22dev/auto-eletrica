@@ -5,14 +5,14 @@ import {
 } from '../data/ordens.js'
 import { useConfiguracoes } from '../data/configuracoes.js'
 import { placaValida } from '../lib/placa.js'
-import { vencimentoGarantia, garantiaVigente } from '../lib/garantia.js'
+import { situacaoGarantia } from './situacaoGarantia.js'
 import { formatarData, hojeISO } from '../lib/datas.js'
 import { formatarBRL, somarCentavos, totalDoItem } from '../lib/dinheiro.js'
 import { STATUS } from '../lib/status.js'
 import CamposDaOs from './CamposDaOs.jsx'
 import ItensEditor from './ItensEditor.jsx'
 import { ITEM_VAZIO } from './item.js'
-import { CAMPOS_VAZIOS } from './dadosOs.js'
+import { CAMPOS_VAZIOS, camposDoRascunho } from './dadosOs.js'
 import { salvarRascunho, lerRascunho, limparRascunho } from './rascunho.js'
 import Botao from '../ui/Botao.jsx'
 
@@ -27,8 +27,13 @@ export default function NovaOS() {
   const [sugestao, setSugestao] = useState(null)
   const [ultimaFinalizada, setUltimaFinalizada] = useState(null)
   const [placaConsultada, setPlacaConsultada] = useState('')
+  // Muda para refazer a consulta da mesma placa apos uma falha de rede.
+  const [tentativa, setTentativa] = useState(0)
 
   const [erro, setErro] = useState('')
+  // Separado do erro de gravacao: pendurado embaixo do formulario, o
+  // erro da consulta podia ser lido como "a OS nao salvou".
+  const [erroConsulta, setErroConsulta] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [rascunhoOferecido, setRascunhoOferecido] = useState(lerRascunho())
 
@@ -49,11 +54,22 @@ export default function NovaOS() {
         if (cancelado) return
         setSugestao(anterior)
         setUltimaFinalizada(finalizada)
+        setErroConsulta('')
         setPlacaConsultada(placa)
       })
-      .catch((e) => { if (!cancelado) setErro(e.message) })
+      .catch(() => {
+        if (cancelado) return
+        // Marcar a tentativa como encerrada e dizer a verdade: sem isso a
+        // tela ficava em "Consultando..." para sempre e a tarja de garantia
+        // simplesmente nunca aparecia - o dono cobraria um servico que
+        // estava na garantia sem nada avisar.
+        setSugestao(null)
+        setUltimaFinalizada(null)
+        setErroConsulta('Não foi possível verificar o histórico desta placa.')
+        setPlacaConsultada(placa)
+      })
     return () => { cancelado = true }
-  }, [placa])
+  }, [placa, tentativa])
 
   useEffect(() => {
     if (!placa && itens.length === 1 && !itens[0].descricao) return
@@ -89,8 +105,7 @@ export default function NovaOS() {
     if (!r) return
     setObservacoes(r.observacoes || '')
     setItens(r.itens?.length ? r.itens : [{ ...ITEM_VAZIO }])
-    // Rascunho no formato antigo não tem `campos`; cai no vazio sem quebrar.
-    setCampos({ ...CAMPOS_VAZIOS(), ...(r.campos || {}) })
+    setCampos(camposDoRascunho(r, hojeISO()))
   }
 
   function descartarRascunho() {
@@ -103,18 +118,17 @@ export default function NovaOS() {
   )
 
   // Resultado de outra placa nao vale para esta.
+  // `atual` = esta placa ja foi respondida, com sucesso ou com falha.
   const atual = placaConsultada === placa
   // Derivado, nao guardado: esta consultando enquanto a placa valida
   // digitada ainda nao e a que voltou do banco.
   const consultando = placaValida(placa) && !atual
-  const sugestaoValida = atual ? sugestao : null
-  const finalizadaValida = atual ? ultimaFinalizada : null
+  const respondida = atual && !erroConsulta
+  const sugestaoValida = respondida ? sugestao : null
+  const finalizadaValida = respondida ? ultimaFinalizada : null
 
   const meses = config?.garantia_meses ?? 3
-  const vencimento = finalizadaValida
-    ? vencimentoGarantia(finalizadaValida.data_os, meses)
-    : null
-  const emGarantia = garantiaVigente(vencimento, hojeISO())
+  const garantia = situacaoGarantia(finalizadaValida, meses, hojeISO())
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col">
@@ -148,6 +162,23 @@ export default function NovaOS() {
 
         {consultando && <p className="mb-3 text-sm text-mute">Consultando…</p>}
 
+        {erroConsulta && (
+          <div className="mb-3 rounded-xl border border-[#F2D479] bg-[#FEF3C7] px-3 py-2.5 text-[11.5px] leading-snug text-[#7A4A06]">
+            {erroConsulta}{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setErroConsulta('')
+                setPlacaConsultada('')
+                setTentativa((t) => t + 1)
+              }}
+              className="font-extrabold underline"
+            >
+              Tentar de novo
+            </button>
+          </div>
+        )}
+
         {sugestaoValida && (
           <div className="mb-3 rounded-xl border border-[#BCE5C8] bg-[#F0FAF2] px-3 py-2.5">
             <span className="block text-[13px] font-bold">
@@ -169,10 +200,10 @@ export default function NovaOS() {
           </div>
         )}
 
-        {emGarantia && finalizadaValida && (
+        {garantia.vigente && finalizadaValida && (
           <div className="mb-3 rounded-xl border border-[#F2D479] bg-[#FEF3C7] px-3 py-2.5 text-[11.5px] leading-snug text-[#7A4A06]">
             <strong className="font-extrabold">Garantia vigente</strong> até{' '}
-            {formatarData(vencimento)} — OS nº {finalizadaValida.numero ?? '—'}
+            {formatarData(garantia.vencimento)} — OS nº {finalizadaValida.numero ?? '—'}
             {servicoPrincipal(finalizadaValida)
               ? `, ${servicoPrincipal(finalizadaValida)}`
               : ''}

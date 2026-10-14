@@ -30,6 +30,12 @@ export async function listarOrdens({
 
   if (status) q = q.eq('status', status)
 
+  // Filtrado no banco, antes do limite. Filtrar depois, no cliente, recortaria
+  // por data e esconderia um orçamento antigo esperando resposta — justamente
+  // o que a tela de Início existe para mostrar. `in` é um filtro próprio,
+  // combinado por and, então convive com o `or` da busca.
+  if (emAberto) q = q.in('status', [STATUS.ORCAMENTO, STATUS.APROVADA])
+
   const t = termo.trim()
   if (t) {
     const filtros = [
@@ -43,12 +49,6 @@ export async function listarOrdens({
   const { data, error } = await q
   if (error) throw new Error('Não foi possível listar as ordens de serviço.')
 
-  // Orçamento e aprovada são o que está pendurado. Filtrado aqui porque o
-  // `or` já está ocupado pela busca e os dois não se combinam no PostgREST.
-  if (emAberto) {
-    return data.filter(
-      (o) => o.status === STATUS.ORCAMENTO || o.status === STATUS.APROVADA)
-  }
   return data
 }
 

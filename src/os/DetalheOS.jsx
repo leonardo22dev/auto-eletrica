@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Download, MessageCircle, Copy } from 'lucide-react'
 import {
@@ -9,7 +9,7 @@ import { STATUS, transicoesPermitidas, rotuloStatus } from '../lib/status.js'
 import { formatarData, formatarDataHora, hojeISO } from '../lib/datas.js'
 import { formatarPlaca } from '../lib/placa.js'
 import { formatarBRL } from '../lib/dinheiro.js'
-import { vencimentoGarantia } from '../lib/garantia.js'
+import { situacaoGarantia } from './situacaoGarantia.js'
 import { salvarRascunho } from './rascunho.js'
 import { editadaDepoisDeEmitida } from './edicao.js'
 import ItensEditor from './ItensEditor.jsx'
@@ -47,11 +47,22 @@ export default function DetalheOS() {
   const [ocupado, setOcupado] = useState(false)
   const [editandoDados, setEditandoDados] = useState(false)
   const [campos, setCampos] = useState(null)
+  // Lido dentro do callback de busca, que nao enxerga o estado atual.
+  const editandoRef = useRef(false)
 
   const buscar = useCallback(
     () =>
       buscarOrdem(id)
-        .then((o) => { setOs(o); setItens(o.itens); setCampos(null); setErro(''); return o })
+        .then((o) => {
+          setOs(o)
+          setItens(o.itens)
+          // Nao zera os campos com o painel de edicao aberto: uma correcao de
+          // nome ainda nao salva seria descartada em silencio quando o usuario
+          // salvasse os itens ou mudasse o status.
+          setCampos((c) => (editandoRef.current ? c : null))
+          setErro('')
+          return o
+        })
         .catch((e) => { setErro(e.message); return null })
         .finally(() => setCarregando(false)),
     [id],
@@ -101,7 +112,9 @@ export default function DetalheOS() {
   const salvarDados = () => executar(async () => {
     await atualizarDadosDaOs(os.id, campos)
     const atualizada = await buscar()
+    editandoRef.current = false
     setEditandoDados(false)
+    setCampos(null)
     setAviso('Dados salvos.')
     await regerarPdfPublicado(atualizada)
   })
@@ -179,9 +192,7 @@ export default function DetalheOS() {
   if (!os) return null
 
   const meses = config?.garantia_meses ?? 3
-  const vencimento = os.status === STATUS.FINALIZADA
-    ? vencimentoGarantia(os.data_os, meses)
-    : null
+  const garantia = situacaoGarantia(os, meses, hojeISO())
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col">
@@ -211,7 +222,7 @@ export default function DetalheOS() {
             </h2>
             <button
               type="button"
-              onClick={() => setEditandoDados((v) => !v)}
+              onClick={() => setEditandoDados((v) => { editandoRef.current = !v; return !v })}
               className="text-sm font-semibold text-red"
             >
               {editandoDados ? 'Cancelar' : 'Editar'}
@@ -279,13 +290,26 @@ export default function DetalheOS() {
           </div>
         )}
 
-        {vencimento && (
-          <p className="mt-3 rounded-xl border border-[#F3C7BF] bg-red-tint px-3 py-2.5 text-[11.5px] leading-snug text-red-dark">
+        {/* A informação é útil nos dois casos; o que não pode é a tela
+            afirmar vigência de uma garantia vencida, no balcão, para o
+            cliente ler. */}
+        {garantia.vencimento && (
+          <p
+            className={`mt-3 rounded-xl border px-3 py-2.5 text-[11.5px] leading-snug ${
+              garantia.vigente
+                ? 'border-[#F3C7BF] bg-red-tint text-red-dark'
+                : 'border-linha bg-paper text-mute'
+            }`}
+          >
             <strong className="font-extrabold">
               Garantia de {meses} {meses === 1 ? 'mês' : 'meses'}
             </strong>{' '}
-            para peças com defeito — vigente até{' '}
-            <strong className="font-extrabold">{formatarData(vencimento)}</strong>.
+            para peças com defeito —{' '}
+            {garantia.vigente ? 'vigente até ' : 'encerrada em '}
+            <strong className="font-extrabold">
+              {formatarData(garantia.vencimento)}
+            </strong>
+            .
           </p>
         )}
 

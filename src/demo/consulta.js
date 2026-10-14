@@ -84,6 +84,13 @@ function clausulaOnde(filtros, params) {
       // Entre parênteses para não vazar sobre os filtros vizinhos.
       return `(${dentro})`
     }
+    if (f.tipo === 'in') {
+      const marcadores = f.valor.map((v) => {
+        params.push(v)
+        return `$${params.length}`
+      })
+      return `${f.coluna} in (${marcadores.join(', ')})`
+    }
     if (f.tipo === 'neq') {
       params.push(f.valor)
       return `${f.coluna} <> $${params.length}`

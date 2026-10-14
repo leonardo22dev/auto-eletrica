@@ -17,11 +17,14 @@ export default function CamposDaOs({ campos, aoMudar, erroPlaca = '' }) {
         >
           Placa
         </label>
+        {/* maxLength 10, não 7: colar "ABC-1234" do WhatsApp era truncado
+            pelo navegador antes da normalização, e o campo ficava "ABC123" —
+            sem sugestão e sem aviso de garantia. Quem valida é placaValida. */}
         <input
           id="placa"
           value={campos.veiculo_placa}
           onChange={(e) => mudar('veiculo_placa', normalizarPlaca(e.target.value))}
-          maxLength={7}
+          maxLength={10}
           autoCapitalize="characters"
           placeholder="ABC1D23"
           className={`h-15 w-full rounded-xl border-[1.5px] bg-paper text-center text-2xl font-extrabold tracking-[0.14em] focus:outline-none ${erroPlaca ? 'border-red' : 'border-ink'}`}

@@ -35,7 +35,7 @@ export default function Inicio() {
       Promise.all([
         listarOrdens({ status: STATUS.ORCAMENTO, limite: 200 }),
         listarOrdens({ status: STATUS.FINALIZADA, limite: 500 }),
-        listarOrdens({ emAberto: true, limite: 20 }),
+        listarOrdens({ emAberto: true, limite: 200 }),
       ])
         .then(([orcamentos, finalizadas, pendentes]) => {
           const inicioDoMes = `${hojeISO().slice(0, 8)}01`
@@ -48,6 +48,8 @@ export default function Inicio() {
             // A lista do que está pendurado já traz orçamentos e aprovadas:
             // os dois números saem dela, sem uma consulta a mais.
             emAberto: pendentes.length,
+            // A tela mostra as primeiras; o resto vive no Histórico.
+            maisQueCabe: Math.max(0, pendentes.length - 20),
             orcamentos: orcamentos.length,
             faturado,
             pendentes,
@@ -90,12 +92,22 @@ export default function Inicio() {
             />
           ) : (
             <ul>
-              {dados.pendentes.map((o) => (
+              {dados.pendentes.slice(0, 20).map((o) => (
                 <li key={o.id}>
                   <LinhaOS os={o} aoClicar={() => navegar(`/os/${o.id}`)} />
                 </li>
               ))}
             </ul>
+          )}
+
+          {dados.maisQueCabe > 0 && (
+            <button
+              type="button"
+              onClick={() => navegar('/os')}
+              className="mt-1 w-full py-2 text-sm font-semibold text-red"
+            >
+              e mais {dados.maisQueCabe} no Histórico
+            </button>
           )}
         </>
       )}

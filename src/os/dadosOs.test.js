@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validarDadosDaOs, CAMPOS_VAZIOS } from './dadosOs.js'
+import { validarDadosDaOs, CAMPOS_VAZIOS, camposDoRascunho } from './dadosOs.js'
 
 const bom = {
   veiculo_placa: 'ABC1234',
@@ -46,6 +46,40 @@ describe('validarDadosDaOs', () => {
     const r = validarDadosDaOs({ ...bom, cliente_telefone: '' })
     expect(r.erro).toBe('')
     expect(r.dados.cliente_telefone).toBe(null)
+  })
+
+  // A data nasce no carregamento da tela e vai no rascunho. OS começada às
+  // 23h50 e retomada de manhã sairia datada de ontem, e a garantia contaria
+  // de ontem — numa tela em que a data fica no alto, mas que ninguém relê.
+  describe('camposDoRascunho', () => {
+    it('reaproveita o que foi digitado', () => {
+      const c = camposDoRascunho(
+        { campos: { cliente_nome: 'João', veiculo_placa: 'ABC1234', data_os: '2026-10-14' } },
+        '2026-10-14',
+      )
+      expect(c.cliente_nome).toBe('João')
+      expect(c.veiculo_placa).toBe('ABC1234')
+      expect(c.data_os).toBe('2026-10-14')
+    })
+
+    it('traz a data para hoje quando o rascunho é de outro dia', () => {
+      const c = camposDoRascunho(
+        { campos: { cliente_nome: 'João', data_os: '2026-10-13' } },
+        '2026-10-14',
+      )
+      expect(c.data_os).toBe('2026-10-14')
+      expect(c.cliente_nome).toBe('João')
+    })
+
+    it('aguenta rascunho no formato antigo, sem campos', () => {
+      const c = camposDoRascunho({ placa: 'ABC1234', itens: [] }, '2026-10-14')
+      expect(c.data_os).toBe('2026-10-14')
+      expect(c.cliente_nome).toBe('')
+    })
+
+    it('aguenta rascunho ausente', () => {
+      expect(camposDoRascunho(null, '2026-10-14').data_os).toBe('2026-10-14')
+    })
   })
 
   it('CAMPOS_VAZIOS traz a data de hoje e o resto em branco', () => {

@@ -34,6 +34,36 @@ describe('modo demonstração — leitura', () => {
     expect(abertas.every((o) => o.status !== STATUS.FINALIZADA)).toBe(true)
   })
 
+  // O limite vale no banco, antes de qualquer filtro. Se o recorte fosse por
+  // data e o status filtrado depois, no cliente, um orçamento antigo
+  // esperando resposta sumiria da tela de Início — que existe justamente
+  // para mostrar o que está pendurado.
+  it('acha o que está em aberto mesmo além do limite por data', async () => {
+    const orcamentoAntigo = await ordens.criarOrdem({
+      dados: {
+        veiculo_placa: 'OLD1A23', data_os: '2020-01-10',
+        cliente_nome: 'Orçamento Antigo', cliente_telefone: '',
+        veiculo_descricao: 'Carro antigo',
+      },
+      itens: [],
+    })
+    // Enche a frente da lista com OS finalizadas, todas mais recentes.
+    for (let i = 0; i < 5; i++) {
+      const os = await ordens.criarOrdem({
+        dados: {
+          veiculo_placa: 'FIL1A23', data_os: hojeISO(),
+          cliente_nome: `Enchendo ${i}`, cliente_telefone: '',
+          veiculo_descricao: 'Carro',
+        },
+        itens: [], status: STATUS.APROVADA,
+      })
+      await ordens.mudarStatus(os.id, STATUS.FINALIZADA)
+    }
+
+    const abertas = await ordens.listarOrdens({ emAberto: true, limite: 3 })
+    expect(abertas.map((o) => o.id)).toContain(orcamentoAntigo.id)
+  })
+
   it('busca por nome, por placa e por número', async () => {
     expect(await ordens.listarOrdens({ termo: 'Marcos' })).toHaveLength(1)
     expect(await ordens.listarOrdens({ termo: 'abc-1234' })).toHaveLength(1)
