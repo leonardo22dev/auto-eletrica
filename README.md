@@ -69,6 +69,13 @@ de vez, use *Authentication → Users* no painel; as OS dela permanecem.
 vai por WhatsApp continua abrindo, porque o bucket é público; só quem está logado
 e ativo lista. Cole e rode uma vez, depois da atualização de usuários.
 
+`supabase/atualizacao-0012.sql` cria a **exclusão de OS**: só o administrador, em
+qualquer status (inclusive OS assinada), pela função `excluir_os`. Pela API
+continua sem existir apagar direto. Fica um registro mínimo em *Ajustes → OS
+excluídas* (número, cliente, placa, total, se estava assinada, quem e quando).
+Itens, atividade, aceite do cliente e o PDF publicado somem, e não há volta.
+Rode o SQL **antes** de publicar o app que traz o botão.
+
 Depois, no painel do Supabase:
 
 1. *Authentication → Users*: crie o usuário da oficina com **Auto Confirm User**.

@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Download, MessageCircle, Copy } from 'lucide-react'
+import { useAuth } from '../auth/contexto.js'
+import ConfirmarExclusao, { BotaoExcluirOs } from './ExcluirOs.jsx'
 import {
   buscarOrdem, atualizarItens, atualizarDadosDaOs, mudarStatus, cancelarOrdem,
+  excluirOrdem,
 } from '../data/ordens.js'
 import { useConfiguracoes } from '../data/configuracoes.js'
 import { STATUS, transicoesPermitidas, rotuloStatus } from '../lib/status.js'
@@ -49,8 +52,10 @@ export default function DetalheOS() {
   const { id } = useParams()
   const navegar = useNavigate()
   const { config } = useConfiguracoes()
+  const { perfil } = useAuth()
 
   const [os, setOs] = useState(null)
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false)
   const [itens, setItens] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
@@ -198,6 +203,12 @@ export default function DetalheOS() {
     await gerarLinkAssinatura(os.id, { renovar: true })
     await buscar()
     setAviso('Novo link gerado. O anterior não vale mais; envie de novo.')
+  })
+
+  // Depois de excluir a OS já não existe: volta ao Histórico.
+  const excluir = () => executar(async () => {
+    await excluirOrdem(os)
+    navegar('/os')
   })
 
   function duplicar() {
@@ -383,6 +394,25 @@ export default function DetalheOS() {
         <Botao variante="fantasma" tamanho="pequeno" onClick={duplicar}>
           <Copy size={16} aria-hidden="true" /> Duplicar como nova OS
         </Botao>
+
+        {confirmandoExclusao ? (
+          <div className="mt-2">
+            <ConfirmarExclusao
+              os={os}
+              ocupado={ocupado}
+              aoCancelar={() => setConfirmandoExclusao(false)}
+              aoConfirmar={excluir}
+            />
+          </div>
+        ) : (
+          <div className="mt-2">
+            <BotaoExcluirOs
+              perfil={perfil}
+              desabilitado={ocupado}
+              aoClicar={() => setConfirmandoExclusao(true)}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

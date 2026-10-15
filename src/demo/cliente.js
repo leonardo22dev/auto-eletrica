@@ -237,6 +237,10 @@ export const clienteDemo = {
         urlsDePdf.set(caminho, URL.createObjectURL(blob))
         return { data: { path: caminho }, error: null }
       },
+      async remove(caminhos) {
+        for (const c of caminhos) urlsDePdf.delete(c)
+        return { data: [], error: null }
+      },
       getPublicUrl(caminho) {
         return { data: { publicUrl: urlsDePdf.get(caminho) || '#' } }
       },

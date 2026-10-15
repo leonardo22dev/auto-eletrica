@@ -173,3 +173,34 @@ export async function registrarPdfDaOrdem(osId, caminho) {
     .eq('id', osId)
   if (error) throw new Error('Não foi possível registrar o PDF da OS.')
 }
+
+const BUCKET_PDFS = 'os-pdfs'
+
+// Exclusão definitiva, só para administrador (o banco confere). O PDF publicado
+// sai primeiro: se o arquivo ficasse, o link já enviado por WhatsApp continuaria
+// abrindo o documento de uma OS que não existe mais. Se a exclusão no banco
+// falhar depois disso, a OS continua lá e o PDF é regerado no próximo envio.
+export async function excluirOrdem(os) {
+  if (os.pdf_path) {
+    const { error: erroPdf } = await supabase.storage.from(BUCKET_PDFS).remove([os.pdf_path])
+    if (erroPdf) throw new Error('Não foi possível apagar o PDF da OS. Tente de novo.')
+  }
+  const { error } = await supabase.rpc('excluir_os', { p_os_id: os.id })
+  if (error) {
+    throw new Error(/acesso_negado/.test(error.message)
+      ? 'Só o administrador pode excluir uma OS.'
+      : 'Não foi possível excluir a OS.')
+  }
+}
+
+// O registro mínimo do que foi excluído. Só o administrador lê (RLS).
+export async function listarOsExcluidas({ limite = 50 } = {}) {
+  const { data, error } = await supabase
+    .from('os_excluidas')
+    .select('*')
+    .order('excluida_em', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(limite)
+  if (error) throw new Error('Não foi possível ler as OS excluídas.')
+  return data ?? []
+}

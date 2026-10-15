@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../auth/contexto.js'
 import Campo from '../ui/Campo.jsx'
 import Botao from '../ui/Botao.jsx'
+import OsExcluidas from './OsExcluidas.jsx'
 
 const CAMPOS = [
   { chave: 'razao_social', rotulo: 'Razão social' },
@@ -191,7 +192,9 @@ export default function Configuracoes() {
         </Botao>
       </form>
 
-      <div className="mt-4">
+      <OsExcluidas />
+
+      <div className="mt-6">
         <Botao variante="fantasma" onClick={sair}>
           Sair
         </Botao>
