@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { UserPlus } from 'lucide-react'
 import { useAuth } from '../auth/contexto.js'
 import {
-  listarUsuarios, criarUsuario, alterarUsuario, redefinirSenha, listarAtividadeDeUsuarios,
+  listarUsuarios, criarUsuario, alterarUsuario, redefinirSenha, excluirUsuario,
+  listarAtividadeDeUsuarios,
 } from '../data/usuarios.js'
 import { formatarDataHora } from '../lib/datas.js'
 import ListaUsuarios from './ListaUsuarios.jsx'
@@ -72,6 +73,8 @@ export default function PaginaUsuarios() {
     userId: alvo.user_id, nome: alvo.nome, papel: alvo.papel, ativo,
   }))
 
+  const excluir = (alvo) => executar(() => excluirUsuario({ userId: alvo.user_id }))
+
   return (
     <div className="mx-auto w-full max-w-2xl px-4 pt-4 pb-6">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -108,7 +111,33 @@ export default function PaginaUsuarios() {
         </div>
       )}
 
-      {painel && painel.tipo !== 'bloquear' && (
+      {painel && painel.tipo === 'excluir' && (
+        <div className="mb-4 rounded-xl border border-red/40 bg-paper p-3">
+          <p className="font-bold">
+            Excluir {painel.alvo.nome} (@{painel.alvo.usuario}) de vez?
+          </p>
+          <p className="mt-1 text-sm text-mute">
+            A conta e a senha são apagadas e não têm volta. As OS que a pessoa fez
+            continuam no sistema, e a atividade continua mostrando o nome dela.
+            Se ela puder voltar um dia, prefira <strong>Bloquear</strong>.
+          </p>
+          {erroDoPainel && (
+            <p role="alert" className="mt-2 text-sm font-semibold text-red">{erroDoPainel}</p>
+          )}
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Botao variante="fantasma" type="button" disabled={enviando}
+              onClick={() => setPainel(null)}>
+              Voltar
+            </Botao>
+            <Botao variante="perigo" type="button" disabled={enviando}
+              onClick={() => excluir(painel.alvo)}>
+              {enviando ? 'Excluindo…' : 'Excluir de vez'}
+            </Botao>
+          </div>
+        </div>
+      )}
+
+      {painel && painel.tipo !== 'bloquear' && painel.tipo !== 'excluir' && (
         <FormUsuario
           key={`${painel.tipo}-${painel.alvo?.user_id ?? 'novo'}`}
           modo={painel.tipo}
@@ -136,6 +165,7 @@ export default function PaginaUsuarios() {
           aoRedefinir={(u) => abrir({ tipo: 'senha', alvo: u })}
           aoBloquear={(u) => abrir({ tipo: 'bloquear', alvo: u })}
           aoReativar={(u) => mudarAtivo(u, true)}
+          aoExcluir={(u) => abrir({ tipo: 'excluir', alvo: u })}
         />
       )}
 

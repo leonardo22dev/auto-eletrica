@@ -1,3 +1,4 @@
+import { Trash2 } from 'lucide-react'
 import { rotuloPapel } from '../auth/perfil.js'
 import { acoesDoUsuario } from './regras.js'
 import Botao from '../ui/Botao.jsx'
@@ -21,7 +22,7 @@ function Selo({ children, tom }) {
 }
 
 export default function ListaUsuarios({
-  usuarios, euId, aoEditar, aoBloquear, aoReativar, aoRedefinir,
+  usuarios, euId, aoEditar, aoBloquear, aoReativar, aoRedefinir, aoExcluir,
 }) {
   if (usuarios.length === 0) {
     return <EstadoVazio titulo="Nenhum usuário" />
@@ -29,7 +30,8 @@ export default function ListaUsuarios({
   return (
     <ul className="flex flex-col gap-2.5">
       {usuarios.map((u) => {
-        const { ehVoce, podeBloquear, podeReativar } = acoesDoUsuario({ alvo: u, euId })
+        const { ehVoce, podeBloquear, podeReativar, podeExcluir } =
+          acoesDoUsuario({ alvo: u, euId })
         return (
           <li key={u.user_id} className="rounded-xl border border-linha bg-paper p-3">
             <div className="flex items-start justify-between gap-2">
@@ -67,6 +69,12 @@ export default function ListaUsuarios({
                 <Botao variante="primario" tamanho="pequeno" type="button"
                   className="col-span-2" onClick={() => aoReativar(u)}>
                   Reativar
+                </Botao>
+              )}
+              {podeExcluir && (
+                <Botao variante="perigo" tamanho="pequeno" type="button"
+                  className="col-span-2" onClick={() => aoExcluir(u)}>
+                  <Trash2 size={15} aria-hidden="true" /> Excluir usuário
                 </Botao>
               )}
             </div>

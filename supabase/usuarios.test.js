@@ -261,6 +261,131 @@ describe('redefinir_senha', () => {
   })
 })
 
+// Bloquear preserva o acesso para depois; excluir apaga a conta de vez. O que a
+// pessoa produziu (OS e atividade) fica, porque é documento da oficina.
+describe('excluir_usuario', () => {
+  const excluir = (quem, id) =>
+    comoUsuario(quem, () => db.query('select excluir_usuario($1)', [id]))
+
+  async function osDoAtendente() {
+    const { rows: [os] } = await db.query(
+      `insert into ordens_servico (cliente_nome, veiculo_descricao, veiculo_placa, criado_por)
+       values ('Cliente', 'Carro', 'ABC1D23', $1) returning id`, [ATENDENTE])
+    return os
+  }
+
+  it('o administrador exclui: o perfil e a conta de login somem', async () => {
+    await excluir(USUARIO_TESTE, ATENDENTE)
+    expect(await perfilDe(ATENDENTE)).toBeUndefined()
+    const { rows } = await db.query('select 1 from auth.users where id = $1', [ATENDENTE])
+    expect(rows).toHaveLength(0)
+  })
+
+  it('a identidade e as sessões do excluído saem junto', async () => {
+    await db.query('insert into auth.sessions (user_id) values ($1)', [ATENDENTE])
+    await db.query(
+      `insert into auth.identities (user_id, provider_id, identity_data, provider)
+       values ($1, $2, '{}'::jsonb, 'email')`, [ATENDENTE, ATENDENTE])
+    await excluir(USUARIO_TESTE, ATENDENTE)
+    const { rows: s } = await db.query('select 1 from auth.sessions where user_id = $1', [ATENDENTE])
+    const { rows: i } = await db.query('select 1 from auth.identities where user_id = $1', [ATENDENTE])
+    expect([s.length, i.length]).toEqual([0, 0])
+  })
+
+  it('as OS que a pessoa criou permanecem, sem autor', async () => {
+    const os = await osDoAtendente()
+    await excluir(USUARIO_TESTE, ATENDENTE)
+    const { rows: [o] } = await db.query(
+      'select criado_por from ordens_servico where id = $1', [os.id])
+    expect(o).toEqual({ criado_por: null })
+  })
+
+  it('a atividade da OS mantém o nome de quem fez', async () => {
+    const os = await comoUsuario(ATENDENTE, async () => {
+      const { rows: [r] } = await db.query(
+        `insert into ordens_servico (cliente_nome, veiculo_descricao, veiculo_placa)
+         values ('Cliente', 'Carro', 'ABC1D23') returning id`)
+      return r
+    })
+    await excluir(USUARIO_TESTE, ATENDENTE)
+    const { rows } = await db.query(
+      "select usuario_nome from os_historico where os_id = $1 and acao = 'criada'", [os.id])
+    expect(rows[0].usuario_nome).toBe('atendente1')
+  })
+
+  it('registra a exclusão no histórico de usuários', async () => {
+    await excluir(USUARIO_TESTE, ATENDENTE)
+    const { rows } = await db.query(
+      "select ator_nome, alvo_usuario, acao, detalhe from usuarios_historico where acao = 'excluido'")
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      alvo_usuario: 'atendente1', detalhe: { papel: 'atendente', nome: 'atendente1' },
+    })
+    expect(rows[0].ator_nome).toBeTruthy()
+  })
+
+  it('o registro sobrevive à exclusão de quem agiu', async () => {
+    await excluir(USUARIO_TESTE, ATENDENTE)
+    await db.query('delete from auth.users where id = $1', [USUARIO_TESTE])
+    const { rows } = await db.query(
+      "select ator_nome from usuarios_historico where acao = 'excluido'")
+    expect(rows[0].ator_nome).toBeTruthy()
+  })
+
+  it.each([
+    ['atendente', ATENDENTE],
+    ['bloqueado', ATENDENTE],
+  ])('%s é recusado', async (nome, uid) => {
+    if (nome === 'bloqueado') {
+      await db.query('update perfis set ativo = false where user_id = $1', [uid])
+    }
+    await expect(excluir(uid, OUTRO_ADMIN)).rejects.toThrow(/acesso_negado/)
+    expect(await perfilDe(OUTRO_ADMIN)).toBeTruthy()
+  })
+
+  it('o visitante não executa a função', async () => {
+    await expect(como(db, 'anon', () => db.query('select excluir_usuario($1)', [ATENDENTE])))
+      .rejects.toThrow(/permission denied/)
+  })
+
+  it('ninguém exclui a si mesmo', async () => {
+    await expect(excluir(USUARIO_TESTE, USUARIO_TESTE)).rejects.toThrow(/proprio_usuario/)
+    expect(await perfilDe(USUARIO_TESTE)).toBeTruthy()
+  })
+
+  it('não deixa o sistema sem administrador ativo', async () => {
+    // Com os dois administradores, excluir um é permitido.
+    await excluir(USUARIO_TESTE, OUTRO_ADMIN)
+    // Agora o dono é o único: o outro administrador já não existe para excluí-lo,
+    // e ele mesmo é barrado por proprio_usuario. A guarda vale para o caso de
+    // sobrar um admin bloqueado e outro ativo.
+    await db.query(
+      `insert into auth.users (id, email) values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'c@mizuho.invalid')`)
+    await db.query(
+      `insert into perfis (user_id, usuario, nome, papel, ativo)
+       values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'admin3', 'Admin 3', 'admin', true)`)
+    await db.query('update perfis set ativo = false where user_id = $1', [USUARIO_TESTE])
+    await expect(
+      comoUsuario('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', () =>
+        db.query('select excluir_usuario($1)', ['eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'])),
+    ).rejects.toThrow(/proprio_usuario/)
+  })
+
+  it('o último administrador ativo não é excluído por outro administrador', async () => {
+    // O dono fica inativo; sobra OUTRO_ADMIN ativo, que um terceiro admin
+    // (também ativo) tentaria excluir. Guarda defensiva da regra.
+    await db.query('update perfis set ativo = false where user_id = $1', [USUARIO_TESTE])
+    await db.query('update perfis set papel = $2 where user_id = $1', [ATENDENTE, 'admin'])
+    await expect(excluir(ATENDENTE, OUTRO_ADMIN)).resolves.toBeTruthy()
+    await expect(excluir(ATENDENTE, ATENDENTE)).rejects.toThrow(/proprio_usuario/)
+  })
+
+  it('usuário inexistente é recusado', async () => {
+    await expect(excluir(USUARIO_TESTE, 'ffffffff-ffff-4fff-8fff-ffffffffffff'))
+      .rejects.toThrow(/usuario_nao_encontrado/)
+  })
+})
+
 describe('usuarios_historico', () => {
   it('só o administrador lê; ninguém escreve pela API', async () => {
     await criar('maria')

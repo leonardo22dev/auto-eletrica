@@ -82,6 +82,20 @@ describe('pacotes para colar no SQL Editor', () => {
     await db.close()
   })
 
+  it('atualizacao-0013.sql aplica sobre quem já está na 0012', async () => {
+    const pacote = ler('atualizacao-0013.sql')
+    expect(pacote).toMatch(/^begin;$/m)
+    expect(pacote).toMatch(/^commit;$/m)
+    expect(pacote).toContain(ler('migrations', '0013_excluir_usuario.sql').trim())
+
+    const db = await criarBanco({ ate: '0012' })
+    await db.exec(pacote)
+    const { rows } = await db.query(
+      "select to_regprocedure('public.excluir_usuario(uuid)') as funcao")
+    expect(rows[0].funcao).toBe('excluir_usuario(uuid)')
+    await db.close()
+  })
+
   it('a atualização não traz migration antiga, que quebraria quem já tem o banco', () => {
     const pacote = ler('atualizacao-usuarios.sql')
     expect(pacote).not.toContain('-- ====== 0007_')

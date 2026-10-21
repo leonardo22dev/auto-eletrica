@@ -48,6 +48,13 @@ export async function redefinirSenha({ userId, senha }) {
   if (error) throw erroDoBanco(error)
 }
 
+// Apaga a conta de vez. O que a pessoa produziu fica: as OS dela permanecem
+// (sem autor) e a atividade mantém o nome. Quem vai voltar, bloqueie.
+export async function excluirUsuario({ userId }) {
+  const { error } = await supabase.rpc('excluir_usuario', { p_user_id: userId })
+  if (error) throw erroDoBanco(error)
+}
+
 export async function listarAtividadeDeUsuarios({ limite = 30 } = {}) {
   const { data, error } = await supabase
     .from('usuarios_historico')

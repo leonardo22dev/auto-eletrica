@@ -76,6 +76,12 @@ excluídas* (número, cliente, placa, total, se estava assinada, quem e quando).
 Itens, atividade, aceite do cliente e o PDF publicado somem, e não há volta.
 Rode o SQL **antes** de publicar o app que traz o botão.
 
+`supabase/atualizacao-0013.sql` cria a **exclusão de usuário**: só o
+administrador, pelo botão na aba Usuários. Apaga a conta e a senha de vez;
+ninguém exclui a si mesmo e o sistema nunca fica sem administrador ativo. As OS
+que a pessoa fez continuam, e a atividade mantém o nome dela. Para quem pode
+voltar, use **Bloquear**. Rode o SQL **antes** de publicar o app que traz o botão.
+
 Depois, no painel do Supabase:
 
 1. *Authentication → Users*: crie o usuário da oficina com **Auto Confirm User**.

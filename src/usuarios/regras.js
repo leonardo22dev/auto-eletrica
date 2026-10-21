@@ -39,6 +39,9 @@ export function acoesDoUsuario({ alvo, euId }) {
     podeBloquear: !ehVoce && alvo.ativo,
     podeReativar: !ehVoce && !alvo.ativo,
     podeMudarPapel: !ehVoce,
+    // Excluir vale para quem está ativo ou bloqueado; só não vale para si
+    // mesmo. O banco ainda recusa excluir o último administrador ativo.
+    podeExcluir: !ehVoce,
   }
 }
 
@@ -56,6 +59,8 @@ export function textoDaAtividade({ ator_nome: quem, alvo_usuario: alvo, acao, de
       return `${quem} mudou o nível de ${alvo} para ${rotuloPapel(detalhe.para)}`
     case 'nome_alterado':
       return `${quem} mudou o nome de ${alvo} para ${detalhe.para}`
+    case 'excluido':
+      return `${quem} excluiu o usuário ${alvo} (${detalhe.nome})`
     default:
       return `${quem} fez uma alteração em ${alvo}`
   }

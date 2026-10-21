@@ -42,18 +42,20 @@ describe('acoesDoUsuario', () => {
   const ativo = { user_id: 'a', ativo: true, papel: 'atendente' }
   const bloqueado = { user_id: 'b', ativo: false, papel: 'atendente' }
 
-  it('em outra pessoa: pode bloquear ou reativar e mudar o nível', () => {
+  it('em outra pessoa: pode bloquear ou reativar, mudar o nível e excluir', () => {
     expect(acoesDoUsuario({ alvo: ativo, euId: 'x' })).toEqual({
-      ehVoce: false, podeBloquear: true, podeReativar: false, podeMudarPapel: true,
+      ehVoce: false, podeBloquear: true, podeReativar: false,
+      podeMudarPapel: true, podeExcluir: true,
     })
     expect(acoesDoUsuario({ alvo: bloqueado, euId: 'x' })).toMatchObject({
-      podeBloquear: false, podeReativar: true,
+      podeBloquear: false, podeReativar: true, podeExcluir: true,
     })
   })
 
-  it('em si mesmo: nada de bloquear nem mudar o nível', () => {
+  it('em si mesmo: nada de bloquear, mudar o nível nem excluir', () => {
     expect(acoesDoUsuario({ alvo: ativo, euId: 'a' })).toEqual({
-      ehVoce: true, podeBloquear: false, podeReativar: false, podeMudarPapel: false,
+      ehVoce: true, podeBloquear: false, podeReativar: false,
+      podeMudarPapel: false, podeExcluir: false,
     })
   })
 })
@@ -74,6 +76,8 @@ describe('textoDaAtividade', () => {
       .toBe('Dono mudou o nível de maria para Administrador')
     expect(textoDaAtividade({ ...base, acao: 'nome_alterado', detalhe: { de: 'a', para: 'Maria S.' } }))
       .toBe('Dono mudou o nome de maria para Maria S.')
+    expect(textoDaAtividade({ ...base, acao: 'excluido', detalhe: { nome: 'Maria Souza', papel: 'atendente' } }))
+      .toBe('Dono excluiu o usuário maria (Maria Souza)')
   })
 
   it('ação desconhecida não quebra a tela', () => {

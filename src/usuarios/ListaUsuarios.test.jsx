@@ -12,7 +12,7 @@ const nada = () => {}
 function html(extra = {}) {
   return renderToString(
     <ListaUsuarios usuarios={usuarios} euId="eu" aoEditar={nada} aoBloquear={nada}
-      aoReativar={nada} aoRedefinir={nada} {...extra} />)
+      aoReativar={nada} aoRedefinir={nada} aoExcluir={nada} {...extra} />)
 }
 
 describe('ListaUsuarios', () => {
@@ -38,6 +38,16 @@ describe('ListaUsuarios', () => {
 
   it('toda linha, inclusive a própria, oferece trocar a senha', () => {
     expect(html().match(/Redefinir senha/g)).toHaveLength(3)
+  })
+
+  it('oferece excluir nas outras pessoas, inclusive nas bloqueadas', () => {
+    // Três linhas: a própria (sem "Excluir"), Maria e João.
+    expect(html().match(/Excluir/g)).toHaveLength(2)
+  })
+
+  it('na própria linha não oferece excluir', () => {
+    const so_eu = [usuarios[0]]
+    expect(html({ usuarios: so_eu })).not.toContain('Excluir')
   })
 
   it('lista vazia mostra um estado vazio, não uma tabela quebrada', () => {
