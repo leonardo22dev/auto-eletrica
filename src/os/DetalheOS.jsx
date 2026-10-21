@@ -19,6 +19,7 @@ import EditorDeItens from './EditorDeItens.jsx'
 import CamposDaOs from './CamposDaOs.jsx'
 import Botao from '../ui/Botao.jsx'
 import Chip from '../ui/Chip.jsx'
+import TelefoneWhatsApp from '../ui/TelefoneWhatsApp.jsx'
 import { gerarLinkAssinatura } from '../data/assinatura.js'
 import { situacaoDoLink } from '../assinatura/estado.js'
 import { urlDeAssinatura, baseDaUrl } from '../assinatura/codigo.js'
@@ -237,6 +238,9 @@ export default function DetalheOS() {
 
   const meses = config?.garantia_meses ?? 3
   const garantia = situacaoGarantia(os, meses, hojeISO())
+  const valorDoTelefone = os.cliente_telefone
+    ? <TelefoneWhatsApp telefone={os.cliente_telefone} />
+    : '—'
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col">
@@ -286,7 +290,7 @@ export default function DetalheOS() {
               {[
                 ['Data', formatarData(os.data_os)],
                 ['Cliente', os.cliente_nome],
-                ['Telefone', os.cliente_telefone || '—'],
+                ['Telefone', valorDoTelefone],
                 ['Veículo', os.veiculo_descricao],
                 ['Placa', formatarPlaca(os.veiculo_placa)],
               ].map(([rotulo, valor], i, lista) => (
