@@ -15,6 +15,12 @@ describe('TelefoneWhatsApp', () => {
     expect(h).toMatch(/WhatsApp/i) // nome acessível do atalho
   })
 
+  it('mostra o símbolo do WhatsApp, não um balão genérico', () => {
+    const h = html('(11) 98888-7777')
+    expect(h).toContain('<svg')
+    expect(h).not.toContain('lucide') // o ícone genérico da biblioteca
+  })
+
   it('abre em outra aba sem dar acesso à nossa', () => {
     const h = html('(11) 98888-7777')
     expect(h).toContain('target="_blank"')

@@ -1,4 +1,5 @@
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer'
+import IconeWhatsApp from './IconeWhatsApp.jsx'
 
 const VERMELHO = '#CC2E1E'
 const PRETO = '#000000'
@@ -13,6 +14,7 @@ const s = StyleSheet.create({
   },
   logo: { width: 76, height: 76, objectFit: 'contain' },
   blocoFone: { justifyContent: 'center' },
+  linhaFone: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   fone: { fontFamily: 'Helvetica', fontWeight: 700, fontSize: 17 },
   colunaEmpresa: { flex: 1, alignItems: 'flex-end' },
   razao: { fontFamily: 'Times-Roman', fontWeight: 700, fontSize: 21, textAlign: 'right' },
@@ -94,7 +96,10 @@ export default function DocumentoOS({ dados, logoSrc }) {
           {logoSrc ? <Image style={s.logo} src={logoSrc} /> : <View style={s.logo} />}
 
           <View style={s.blocoFone}>
-            <Text style={s.fone}>{empresa.telefone}</Text>
+            <View style={s.linhaFone}>
+              <IconeWhatsApp size={14} />
+              <Text style={s.fone}>{empresa.telefone}</Text>
+            </View>
           </View>
 
           <View style={s.colunaEmpresa}>

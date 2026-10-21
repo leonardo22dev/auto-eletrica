@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Download, MessageCircle, Copy } from 'lucide-react'
+import { Download, Copy } from 'lucide-react'
 import { useAuth } from '../auth/contexto.js'
 import ConfirmarExclusao, { BotaoExcluirOs } from './ExcluirOs.jsx'
 import {
@@ -20,6 +20,7 @@ import CamposDaOs from './CamposDaOs.jsx'
 import Botao from '../ui/Botao.jsx'
 import Chip from '../ui/Chip.jsx'
 import TelefoneWhatsApp from '../ui/TelefoneWhatsApp.jsx'
+import IconeWhatsApp from '../ui/IconeWhatsApp.jsx'
 import { gerarLinkAssinatura } from '../data/assinatura.js'
 import { situacaoDoLink } from '../assinatura/estado.js'
 import { urlDeAssinatura, baseDaUrl } from '../assinatura/codigo.js'
@@ -377,7 +378,7 @@ export default function DetalheOS() {
             <Download size={16} aria-hidden="true" /> PDF
           </Botao>
           <Botao variante="whatsapp" tamanho="pequeno" onClick={whatsapp} disabled={ocupado}>
-            <MessageCircle size={16} aria-hidden="true" /> WhatsApp
+            <IconeWhatsApp size={16} /> WhatsApp
           </Botao>
         </div>
 

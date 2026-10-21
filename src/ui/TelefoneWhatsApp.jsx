@@ -1,4 +1,4 @@
-import { MessageCircle } from 'lucide-react'
+import IconeWhatsApp from './IconeWhatsApp.jsx'
 import { linkWhatsApp, telefoneWhatsApp } from '../lib/telefone.js'
 
 // O telefone do cliente com o atalho do WhatsApp ao lado: um toque abre a
@@ -18,7 +18,7 @@ export default function TelefoneWhatsApp({ telefone }) {
       className="inline-flex items-center gap-1.5 font-bold"
     >
       {texto}
-      <MessageCircle size={15} className="text-[#1FA855]" aria-hidden="true" />
+      <IconeWhatsApp size={15} className="text-[#25D366]" />
     </a>
   )
 }

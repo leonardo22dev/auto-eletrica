@@ -52,6 +52,31 @@ function textoDoPdf(buffer) {
   return trechos.join('\n')
 }
 
+// As cores de preenchimento do desenho. O talão é preto com o vermelho da
+// marca, então o verde do WhatsApp só aparece se o símbolo foi mesmo desenhado
+// — texto não prova nada aqui, porque o ícone é vetor, não letra.
+function coresDePreenchimento(buffer) {
+  const latin = buffer.toString('latin1')
+  const marcador = /stream\r?\n/g
+  let conteudo = ''
+  let m
+  while ((m = marcador.exec(latin)) !== null) {
+    const inicio = m.index + m[0].length
+    const fim = latin.indexOf('endstream', inicio)
+    if (fim < 0) continue
+    try {
+      conteudo += inflateSync(Buffer.from(latin.slice(inicio, fim), 'latin1'))
+        .toString('latin1')
+    } catch { /* stream binário, como a imagem do logo */ }
+  }
+  // O react-pdf escreve a cor como `r g b scn`, com as frações por extenso.
+  return [...conteudo.matchAll(/([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+scn/g)]
+    .map((c) => c.slice(1, 4).map((n) => Number(n).toFixed(2)).join(' '))
+}
+
+// #25D366, o verde do WhatsApp, como o PDF escreve: três frações de 0 a 1.
+const VERDE_WHATSAPP = '0.15 0.83 0.40'
+
 // O PDF quebra linhas onde o layout manda, partindo um mesmo campo em vários
 // trechos. Para asserções sobre o conteúdo, não sobre a quebra, colapsa-se
 // o espaço em branco.
@@ -135,6 +160,18 @@ describe('DocumentoOS', () => {
   it('sai como ORDEM DE SERVIÇOS depois de aprovada', async () => {
     const texto = textoDoPdf(await renderizar({ ...OS, status: 'aprovada' }))
     expect(texto).toContain('ORDEM DE SERVIÇOS')
+  })
+
+  it('desenha o símbolo do WhatsApp no cabeçalho, junto do telefone da oficina', async () => {
+    const buffer = await renderizar(OS)
+    expect(coresDePreenchimento(buffer)).toContain(VERDE_WHATSAPP)
+    // E o telefone continua impresso, do lado do símbolo.
+    expect(colapsar(textoDoPdf(buffer))).toContain('11 4355-9830')
+  })
+
+  it('o símbolo não atrapalha a razão social, que segue numa linha só', async () => {
+    const linhas = textoDoPdf(await renderizar(OS)).split('\n')
+    expect(linhas).toContain('Auto Elétrica MIZUHO II Ltda. - ME')
   })
 
   // Review Focus 5: OS vazia não pode derrubar a geração.
