@@ -4,6 +4,7 @@ import { STATUS, podeTransicionar } from '../lib/status.js'
 import { normalizarPlaca } from '../lib/placa.js'
 import { validarItens } from '../os/validarItens.js'
 import { validarDadosDaOs } from '../os/dadosOs.js'
+import { limitesDoMes } from '../lib/meses.js'
 
 const CAMPOS_LISTA =
   'id, numero, status, cliente_nome, cliente_telefone, veiculo_placa, ' +
@@ -21,7 +22,7 @@ export function servicoPrincipal(os) {
 }
 
 export async function listarOrdens({
-  termo = '', status = '', emAberto = false, limite = 100, comItens = false,
+  termo = '', status = '', emAberto = false, limite = 100, comItens = false, mes = '',
 } = {}) {
   let q = supabase.from('ordens_servico')
     .select(comItens ? CAMPOS_LISTA_COM_ITEM : CAMPOS_LISTA)
@@ -30,6 +31,11 @@ export async function listarOrdens({
     .limit(limite)
 
   if (status) q = q.eq('status', status)
+
+  // Recorte por mês ('AAAA-MM'), do primeiro ao último dia. Feito no banco
+  // para que o limite não corte o mês pela metade e o total some errado.
+  const periodo = limitesDoMes(mes)
+  if (periodo) q = q.gte('data_os', periodo.de).lte('data_os', periodo.ate)
 
   // Filtrado no banco, antes do limite. Filtrar depois, no cliente, recortaria
   // por data e esconderia um orçamento antigo esperando resposta — justamente
@@ -51,6 +57,19 @@ export async function listarOrdens({
   if (error) throw new Error('Não foi possível listar as ordens de serviço.')
 
   return data
+}
+
+// A data da OS mais antiga, que define até onde o seletor de meses vai.
+// Uma linha só: não vale trazer o histórico inteiro para descobrir isso.
+export async function dataDaOsMaisAntiga() {
+  const { data, error } = await supabase
+    .from('ordens_servico')
+    .select('data_os')
+    .order('data_os', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error('Não foi possível ler o período das ordens de serviço.')
+  return data?.data_os ?? null
 }
 
 export async function buscarOrdem(id) {

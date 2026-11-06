@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { listarOrdens } from '../data/ordens.js'
+import { listarOrdens, dataDaOsMaisAntiga } from '../data/ordens.js'
 import { STATUS } from '../lib/status.js'
-import { formatarData } from '../lib/datas.js'
+import { formatarData, hojeISO } from '../lib/datas.js'
+import { mesesDesde } from '../lib/meses.js'
+import { SeletorDeMes, ResumoDoPeriodo } from './PeriodoDoHistorico.jsx'
+
+// Uma oficina não chega perto disso num mês; o teto existe para uma consulta
+// não virar megabytes no 4G do balcão.
+const LIMITE_DO_MES = 500
 import { formatarBRL } from '../lib/dinheiro.js'
 import { formatarPlaca } from '../lib/placa.js'
 import { useDebounce } from '../ui/useDebounce.js'
@@ -71,20 +77,33 @@ export default function ListaOS() {
   const [termo, setTermo] = useState('')
   const termoAtrasado = useDebounce(termo)
   const [status, setStatus] = useState('')
+  const [mes, setMes] = useState('')
+  const [meses, setMeses] = useState([])
   const [ordens, setOrdens] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
 
   const buscar = useCallback(
-    (t, s) =>
-      listarOrdens({ termo: t, status: s })
+    (t, s, m) =>
+      // Com o mês escolhido, o limite sobe: o resumo soma o que está na lista,
+      // e um recorte cortado daria um total menor do que o mês teve.
+      listarOrdens({ termo: t, status: s, mes: m, limite: m ? LIMITE_DO_MES : undefined })
         .then((lista) => { setOrdens(lista); setErro('') })
         .catch((e) => setErro(e.message))
         .finally(() => setCarregando(false)),
     [],
   )
 
-  useEffect(() => { buscar(termoAtrasado, status) }, [buscar, termoAtrasado, status])
+  useEffect(() => { buscar(termoAtrasado, status, mes) }, [buscar, termoAtrasado, status, mes])
+
+  // Os meses do seletor saem da OS mais antiga, lido uma vez só.
+  useEffect(() => {
+    let cancelado = false
+    dataDaOsMaisAntiga()
+      .then((data) => { if (!cancelado) setMeses(mesesDesde(data, hojeISO())) })
+      .catch(() => { if (!cancelado) setMeses([]) })
+    return () => { cancelado = true }
+  }, [])
 
   return (
     <div className="mx-auto max-w-2xl p-4 md:p-6">
@@ -96,6 +115,10 @@ export default function ListaOS() {
       </div>
 
       <Busca valor={termo} aoMudar={setTermo} placeholder="Nº, cliente ou placa" />
+
+      {meses.length > 1 && (
+        <SeletorDeMes meses={meses} valor={mes} aoMudar={setMes} />
+      )}
 
       <div className="mb-3 flex gap-1.5 overflow-x-auto">
         {FILTROS.map((f) => (
@@ -113,6 +136,8 @@ export default function ListaOS() {
           </button>
         ))}
       </div>
+
+      {!carregando && <ResumoDoPeriodo mes={mes} ordens={ordens} />}
 
       {erro && <p className="mb-3 text-sm font-semibold text-red">{erro}</p>}
       {carregando && <p className="text-mute">Carregando…</p>}

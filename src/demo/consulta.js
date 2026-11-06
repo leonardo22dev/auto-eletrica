@@ -95,6 +95,10 @@ function clausulaOnde(filtros, params) {
       params.push(f.valor)
       return `${f.coluna} <> $${params.length}`
     }
+    if (f.tipo === 'gte' || f.tipo === 'lte') {
+      params.push(f.valor)
+      return `${f.coluna} ${f.tipo === 'gte' ? '>=' : '<='} $${params.length}`
+    }
     if (f.tipo === 'ilike') {
       params.push(f.valor)
       return `${f.coluna} ilike $${params.length}`

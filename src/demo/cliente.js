@@ -46,6 +46,8 @@ class Consulta {
   neq(coluna, valor) { this.filtros.push({ tipo: 'neq', coluna, valor }); return this }
   in(coluna, valor) { this.filtros.push({ tipo: 'in', coluna, valor }); return this }
   ilike(coluna, valor) { this.filtros.push({ tipo: 'ilike', coluna, valor }); return this }
+  gte(coluna, valor) { this.filtros.push({ tipo: 'gte', coluna, valor }); return this }
+  lte(coluna, valor) { this.filtros.push({ tipo: 'lte', coluna, valor }); return this }
   or(expressao) { this.filtros.push({ tipo: 'or', expressao }); return this }
 
   order(coluna, opcoes = {}) {
