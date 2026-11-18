@@ -174,6 +174,40 @@ describe('DocumentoOS', () => {
     expect(linhas).toContain('Auto Elétrica MIZUHO II Ltda. - ME')
   })
 
+  // O link precisa chegar ao papel: é ele que o WhatsApp do Android descarta
+  // quando vai só no texto da mensagem.
+  describe('convite para assinar impresso', () => {
+    const LINK = 'https://autoeletricamizuho.vercel.app/assinar/' + 'a1b2c3d4'.repeat(8)
+    const DESENHO =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+    const comLink = (os = OS) => renderToBuffer(
+      <DocumentoOS dados={montarDadosDocumento(os, CONFIG, { urlAssinatura: LINK })} />)
+
+    it('imprime a chamada e o endereço por extenso', async () => {
+      const texto = colapsar(textoDoPdf(await comLink()))
+      expect(texto).toContain('Toque aqui para assinar pelo celular')
+      expect(texto).toContain(LINK)
+    })
+
+    it('o endereço vira link clicável no arquivo', async () => {
+      const bruto = (await comLink()).toString('latin1')
+      expect(bruto).toContain('/Annots')
+      expect(bruto).toContain(LINK)
+    })
+
+    it('sem link, o documento sai como antes', async () => {
+      const texto = textoDoPdf(await renderizar(OS))
+      expect(texto).not.toContain('Toque aqui')
+    })
+
+    it('OS já assinada não convida a assinar de novo', async () => {
+      const texto = textoDoPdf(await comLink({
+        ...OS, aceite_em: '2026-10-14T15:32:00-03:00', aceite_assinatura: DESENHO,
+      }))
+      expect(texto).not.toContain('Toque aqui')
+    })
+  })
+
   // Review Focus 5: OS vazia não pode derrubar a geração.
   it('renderiza OS sem itens, com o total zerado', async () => {
     const buffer = await renderizar({ ...OS, itens: [], total_centavos: 0 })

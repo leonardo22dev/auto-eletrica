@@ -43,7 +43,9 @@ async function subirPdf(os, blob, caminhoExistente) {
 // então o PDF sobe para o Storage e vai o link. Nos dois casos, quando a OS
 // aceita assinatura, a mensagem leva também o link para o cliente assinar.
 export async function enviarOsPorWhatsApp({ os, config, urlAssinatura }) {
-  const blob = await gerarPdfDaOS(os, config)
+  // O link vai DENTRO do PDF: o WhatsApp do Android entrega o anexo e descarta
+  // o texto da mensagem, então um link só na mensagem se perderia no caminho.
+  const blob = await gerarPdfDaOS(os, config, { urlAssinatura })
   const nome = nomeArquivoPdf(os)
   const arquivo = new File([blob], nome, { type: 'application/pdf' })
 

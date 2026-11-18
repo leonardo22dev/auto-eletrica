@@ -64,7 +64,16 @@ function textoDaAssinatura(aceiteEm, nome) {
   return `Assinado digitalmente ${quem} em ${formatarDataHora(aceiteEm)}`
 }
 
-export function montarDadosDocumento(os, config) {
+// O convite para assinar, impresso no documento. Vai aqui porque o WhatsApp do
+// Android entrega o anexo e descarta o texto da mensagem: dentro do PDF, o
+// link chega inteiro em qualquer aparelho. OS já assinada não recebe convite.
+function convitePorLink(os, urlAssinatura) {
+  const url = textoImprimivel(String(urlAssinatura ?? '').trim())
+  if (url === '' || os.aceite_em) return null
+  return { url, chamada: 'Toque aqui para assinar pelo celular' }
+}
+
+export function montarDadosDocumento(os, config, { urlAssinatura = '' } = {}) {
   const itens = (os.itens || []).slice().sort((a, b) => a.posicao - b.posicao)
 
   // Sem corte em 18: uma OS com mais itens imprime todos. Truncar deixaria o
@@ -92,6 +101,7 @@ export function montarDadosDocumento(os, config) {
   )
 
   return {
+    linkAssinatura: convitePorLink(os, urlAssinatura),
     empresa: {
       razaoSocial: textoImprimivel(config.razao_social),
       cnpj: textoImprimivel(config.cnpj),

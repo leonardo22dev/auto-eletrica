@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { montarDadosDocumento, LINHAS_DO_TALAO, tamanhoDaRazaoSocial } from './dadosDocumento.js'
+import { montarDadosDocumento, LINHAS_DO_TALAO, tamanhoDaRazaoSocial, textoImprimivel } from './dadosDocumento.js'
 
 const CONFIG = {
   razao_social: 'Auto Elétrica MIZUHO II Ltda. - ME',
@@ -240,6 +240,41 @@ describe('valor total no documento', () => {
   it('OS itemizada continua imprimindo unitário e total', () => {
     const d = montarDadosDocumento(OS, CONFIG)
     expect(d.linhas[0]).toMatchObject({ unitario: '380,00', total: '380,00' })
+  })
+})
+
+// O WhatsApp do Android entrega o PDF e descarta o texto da mensagem, então o
+// link de assinatura some no caminho. A saída é o link viajar DENTRO do
+// documento, que chega inteiro em qualquer aparelho.
+describe('link de assinatura impresso no documento', () => {
+  const LINK = 'https://autoeletricamizuho.vercel.app/assinar/' + 'a1b2c3d4'.repeat(8)
+
+  it('sem link, o documento sai como antes', () => {
+    expect(montarDadosDocumento(OS, CONFIG).linkAssinatura).toBe(null)
+  })
+
+  it('com link, entrega o endereço e um texto curto para tocar', () => {
+    const d = montarDadosDocumento(OS, CONFIG, { urlAssinatura: LINK })
+    expect(d.linkAssinatura.url).toBe(LINK)
+    expect(d.linkAssinatura.chamada).toMatch(/assinar/i)
+  })
+
+  it('OS já assinada não convida a assinar de novo', () => {
+    const d = montarDadosDocumento(
+      { ...OS, aceite_em: '2026-10-14T15:32:00-03:00', aceite_assinatura: 'data:image/png;base64,x' },
+      CONFIG, { urlAssinatura: LINK })
+    expect(d.linkAssinatura).toBe(null)
+  })
+
+  it('link vazio ou torto não vira convite', () => {
+    for (const ruim of ['', null, undefined, '   ']) {
+      expect(montarDadosDocumento(OS, CONFIG, { urlAssinatura: ruim }).linkAssinatura).toBe(null)
+    }
+  })
+
+  it('o endereço sai imprimível, sem caractere que a fonte do PDF engole', () => {
+    const d = montarDadosDocumento(OS, CONFIG, { urlAssinatura: LINK })
+    expect(d.linkAssinatura.url).toBe(textoImprimivel(d.linkAssinatura.url))
   })
 })
 

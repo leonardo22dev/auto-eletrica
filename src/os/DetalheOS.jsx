@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Download, Copy } from 'lucide-react'
+import { Download, Copy, PenLine } from 'lucide-react'
 import { useAuth } from '../auth/contexto.js'
 import ConfirmarExclusao, { BotaoExcluirOs } from './ExcluirOs.jsx'
 import {
@@ -25,6 +25,8 @@ import { gerarLinkAssinatura } from '../data/assinatura.js'
 import { situacaoDoLink } from '../assinatura/estado.js'
 import { urlDeAssinatura, baseDaUrl } from '../assinatura/codigo.js'
 import BlocoAssinatura from '../assinatura/BlocoAssinatura.jsx'
+import AssinaturaPresencial from '../assinatura/AssinaturaPresencial.jsx'
+import { situacaoPresencial } from '../assinatura/presencial.js'
 import AtividadeDaOs from './AtividadeDaOs.jsx'
 
 // Endereço que o CLIENTE vai abrir. Configurável porque o dono pode estar num
@@ -58,6 +60,7 @@ export default function DetalheOS() {
 
   const [os, setOs] = useState(null)
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false)
+  const [assinandoAqui, setAssinandoAqui] = useState(false)
   const [itens, setItens] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
@@ -333,6 +336,27 @@ export default function DetalheOS() {
         </div>
 
         <BlocoAssinatura os={os} aoCopiar={copiarLink} aoRenovar={novoLink} ocupado={ocupado} />
+
+        {situacaoPresencial(os) === 'pode' && !assinandoAqui && (
+          <div className="mt-2">
+            <Botao variante="fantasma" tamanho="pequeno" disabled={ocupado}
+              onClick={() => setAssinandoAqui(true)}>
+              <PenLine size={16} aria-hidden="true" /> Cliente assina aqui agora
+            </Botao>
+          </div>
+        )}
+
+        {assinandoAqui && (
+          <AssinaturaPresencial
+            os={os}
+            aoCancelar={() => setAssinandoAqui(false)}
+            aoConcluir={() => {
+              setAssinandoAqui(false)
+              setAviso('Assinatura registrada.')
+              buscar()
+            }}
+          />
+        )}
 
         {os.observacoes && (
           <div className="mt-3 rounded-xl border border-linha bg-paper p-3">

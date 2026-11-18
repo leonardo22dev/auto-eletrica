@@ -1,4 +1,4 @@
-import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer'
+import { Document, Page, View, Text, Image, Link, StyleSheet } from '@react-pdf/renderer'
 import IconeWhatsApp from './IconeWhatsApp.jsx'
 
 const VERMELHO = '#CC2E1E'
@@ -70,6 +70,14 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: PRETO,
     paddingVertical: 4, paddingHorizontal: 16, minWidth: 120,
   },
+
+  convite: {
+    marginTop: 12, alignItems: 'center',
+    borderWidth: 0.8, borderColor: VERMELHO, borderRadius: 4,
+    paddingVertical: 5, paddingHorizontal: 8,
+  },
+  conviteChamada: { fontSize: 9.5, fontWeight: 700, color: VERMELHO, textDecoration: 'none' },
+  conviteEndereco: { fontSize: 6, color: '#444444', marginTop: 2 },
 
   assinatura: { marginTop: 18, alignItems: 'center' },
   riscoAssinatura: { borderTopWidth: 0.8, borderTopColor: PRETO, width: 200, marginBottom: 3 },
@@ -189,6 +197,17 @@ export default function DocumentoOS({ dados, logoSrc }) {
             <Text style={s.rotuloTotal}>TOTAL R$</Text>
             <Text style={s.valorTotal}>{dados.total}</Text>
           </View>
+
+          {dados.linkAssinatura && (
+            <View style={s.convite}>
+              <Link style={s.conviteChamada} src={dados.linkAssinatura.url}>
+                {dados.linkAssinatura.chamada}
+              </Link>
+              {/* O endereco por extenso, para quem precisar digitar ou copiar
+                  num visualizador de PDF que nao abre links. */}
+              <Text style={s.conviteEndereco}>{dados.linkAssinatura.url}</Text>
+            </View>
+          )}
 
           <View style={s.assinatura}>
             {dados.assinatura && (

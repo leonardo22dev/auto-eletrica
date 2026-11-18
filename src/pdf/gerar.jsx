@@ -11,8 +11,11 @@ export function nomeArquivoPdf(os) {
   return `OS-${base}-${os.veiculo_placa || 'veiculo'}.pdf`
 }
 
-export async function gerarPdfDaOS(os, config) {
+// `urlAssinatura` imprime o convite para assinar dentro do documento. Vai como
+// opção porque nem todo PDF nasce de um envio: o botão de baixar e a republicação
+// geram o mesmo documento sem link.
+export async function gerarPdfDaOS(os, config, { urlAssinatura = '' } = {}) {
   if (!config) throw new Error('Configurações da empresa ainda não carregaram.')
-  const dados = montarDadosDocumento(os, config)
+  const dados = montarDadosDocumento(os, config, { urlAssinatura })
   return pdf(<DocumentoOS dados={dados} logoSrc={LOGO} />).toBlob()
 }
